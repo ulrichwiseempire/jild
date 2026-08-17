@@ -12,9 +12,8 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   
-  // Modales & Menus
+  // Modales, Menus & Stories
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
 
@@ -28,7 +27,6 @@ export default function Home() {
   // Formulaires
   const [content, setContent] = useState('')
   const [imageFile, setImageFile] = useState(null)
-  const [avatarFile, setAvatarFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [newComment, setNewComment] = useState({})
 
@@ -106,30 +104,6 @@ export default function Home() {
     }
   }
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault()
-    if (!user) return
-    setUploading(true)
-    let avatarUrl = user.user_metadata?.avatar_url || null
-
-    if (avatarFile) {
-      const fileExt = avatarFile.name.split('.').pop()
-      const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, avatarFile)
-      if (!uploadError) {
-        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
-        avatarUrl = publicUrlData.publicUrl
-      }
-    }
-
-    const { error } = await supabase.auth.updateUser({
-      data: { username: username || user.user_metadata?.username, avatar_url: avatarUrl }
-    })
-    setUploading(false)
-    if (error) alert('Erreur : ' + error.message)
-    else { alert('Profil mis à jour !'); setIsProfileOpen(false) }
-  }
-
   const handlePublish = async (e) => {
     e.preventDefault()
     if (!user) return setIsAuthOpen(true)
@@ -197,7 +171,7 @@ export default function Home() {
       {/* HEADER AVEC RECHERCHE ET MENU BURGER */}
       <header className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-40 backdrop-blur-md p-4">
         <div className="max-w-2xl mx-auto flex justify-between items-center gap-4">
-          <h1 className="text-2xl font-black text-sky-400">JILD</h1>
+          <h1 className="text-2xl font-black text-sky-400 italic">JILD</h1>
 
           <div className="flex-1 max-w-xs">
             <input
@@ -211,15 +185,12 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             {user ? (
-              <div className="flex items-center gap-3">
-                {/* MENU BURGER (3 TRAITS) */}
-                <button 
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="text-2xl p-1 text-slate-300 hover:text-white transition"
-                >
-                  ☰
-                </button>
-              </div>
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-2xl p-1 text-slate-300 hover:text-white transition"
+              >
+                ☰
+              </button>
             ) : (
               <button 
                 onClick={() => setIsAuthOpen(true)} 
@@ -233,7 +204,35 @@ export default function Home() {
       </header>
 
       {/* FEED PRINCIPAL */}
-      <main className="max-w-2xl mx-auto w-full p-4 flex-grow space-y-6">
+      <main className="max-w-2xl mx-auto w-full flex-grow space-y-6">
+
+        {/* BARRE DE STORIES STYLE INSTAGRAM */}
+        <section className="flex gap-4 overflow-x-auto p-4 border-b border-slate-800/80 no-scrollbar">
+          <div className="flex flex-col items-center gap-1 min-w-[65px]">
+            <div className="w-16 h-16 rounded-full border-2 border-slate-700 flex items-center justify-center bg-slate-900 relative">
+              <span className="text-2xl font-bold text-sky-400">+</span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium truncate w-16 text-center">Votre story</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-1 min-w-[65px]">
+            <div className="w-16 h-16 rounded-full border-2 border-pink-500 p-0.5">
+              <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-white">
+                V
+              </div>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium truncate w-16 text-center">viki5_73_</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-1 min-w-[65px]">
+            <div className="w-16 h-16 rounded-full border-2 border-pink-500 p-0.5">
+              <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-white">
+                F
+              </div>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium truncate w-16 text-center">frnd_o_</span>
+          </div>
+        </div>
 
         {/* MODAL AUTHENTIFICATION */}
         {isAuthOpen && (
@@ -252,53 +251,41 @@ export default function Home() {
           </div>
         )}
 
-        {/* MODAL PROFIL */}
-        {isProfileOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative space-y-4">
-              <button onClick={() => setIsProfileOpen(false)} className="absolute top-4 right-4 text-slate-400">✕</button>
-              <h2 className="text-xl font-bold">Mon Profil</h2>
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <input type="text" placeholder="Nouveau pseudo" defaultValue={user?.user_metadata?.username} onChange={(e) => setUsername(e.target.value)} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white" />
-                <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files[0])} className="text-xs text-slate-400" />
-                <button type="submit" disabled={uploading} className="w-full bg-sky-600 py-3 rounded-xl font-semibold text-xs text-white">{uploading ? 'Mise à jour...' : 'Sauvegarder'}</button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* VOLET PARAMÈTRES ET ACTIVITÉ (FIXÉ : PADDING BAS PUSH-UP) */}
+        {/* VOLET MENU / PARAMÈTRES STYLE FACEBOOK */}
         {isSettingsOpen && (
           <div className="fixed inset-0 bg-black/80 z-50 flex justify-end">
             <div className="bg-slate-900 w-full max-w-sm h-full p-5 pb-24 flex flex-col justify-between border-l border-slate-800 overflow-y-auto">
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">⚙️ Paramètres et activité</h2>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">⚙️ Menu & Activité</h2>
                   <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
                 </div>
                 <div className="space-y-4 text-sm text-slate-300">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Utilisation personnelle</div>
-                  <button onClick={() => { setIsSettingsOpen(false); setIsProfileOpen(true); }} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">👤 Modifier le profil</button>
-                  <button onClick={() => alert('Aucun contenu enregistré pour le moment.')} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">🔖 Enregistré</button>
-                  <button onClick={() => alert('Votre historique d\'activité est vide.')} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">📊 Votre activité</button>
-                  <button onClick={() => alert('Vous n\'avez aucune notification.')} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">🔔 Notifications</button>
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Raccourcis</div>
+                  <Link href="/mon-profil" onClick={() => setIsSettingsOpen(false)} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">👤 Mon Profil</Link>
+                  <button onClick={() => alert('Aucun contenu enregistré pour le moment.')} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">🔖 Enregistrements</button>
+                  <button onClick={() => alert('Votre historique d\'activité est vide.')} className="w-full text-left py-2 flex items-center gap-3 hover:text-sky-400">📊 Souvenirs / Activité</button>
                 </div>
               </div>
+
               <div className="border-t border-slate-800 pt-4 space-y-3 mb-6">
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Connexion</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Compte</div>
+                <button onClick={() => { setIsSettingsOpen(false); setIsAuthOpen(true); setIsSignUp(true); }} className="w-full text-left py-2 text-sky-400 font-semibold hover:text-sky-300 transition flex items-center gap-2">
+                  <span>➕</span> Ajouter un autre compte
+                </button>
                 <button 
-                  onClick={() => { supabase.auth.signOut(); setIsSettingsOpen(false); }} 
-                  className="w-full text-left py-2 text-red-500 font-bold hover:text-red-400 transition"
+                  onClick={async () => { await supabase.auth.signOut(); setIsSettingsOpen(false); window.location.reload(); }} 
+                  className="w-full text-left py-2 text-red-500 font-bold hover:text-red-400 transition flex items-center gap-2"
                 >
-                  Se déconnecter
+                  <span>🚪</span> Se déconnecter
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* PUBLICATION */}
-        <section className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+        {/* SECTION PUBLICATION */}
+        <section className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 mx-4">
           <div className="flex gap-3 items-center">
             {user?.user_metadata?.avatar_url ? (
               <img src={user.user_metadata.avatar_url} className="w-10 h-10 rounded-full object-cover" />
@@ -320,7 +307,7 @@ export default function Home() {
         </section>
 
         {/* LISTE DES POSTS */}
-        <section className="space-y-4">
+        <section className="space-y-4 px-4">
           {filteredStories.map((story) => {
             const storyLikes = likes[story.id] || []
             const hasLiked = user && storyLikes.includes(user.id)
@@ -330,21 +317,20 @@ export default function Home() {
               <article key={story.id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
                 <div className="flex justify-between items-center">
                   
-                  {/* PROFILE AUTEUR CLIQUABLE */}
-                  <div onClick={() => setIsProfileOpen(true)} className="flex items-center gap-3 cursor-pointer hover:opacity-80">
-  {story.avatar_url ? (
-    <img src={story.avatar_url} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
-  ) : (
-    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
-      {story.author ? story.author.charAt(0).toUpperCase() : 'U'}
-    </div>
-  )}
-  <div>
-    <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
-    <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
-  </div>
-</div>
-
+                  {/* REDIRECTION PROFIL SUR LES POSTS */}
+                  <Link href="/mon-profil" className="flex items-center gap-3 hover:opacity-80">
+                    {story.avatar_url ? (
+                      <img src={story.avatar_url} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
+                        {story.author ? story.author.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+                      <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </Link>
 
                   {/* BOUTON SUIVRE OU SUPPRIMER */}
                   <div className="flex items-center gap-2">
@@ -386,62 +372,60 @@ export default function Home() {
                   ))}
                   <div className="flex gap-2 pt-1">
                     <input type="text" placeholder="Commenter..." value={newComment[story.id] || ''} onChange={(e) => setNewComment({ ...newComment, [story.id]: e.target.value })} className="flex-grow p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white outline-none" />
-                                  <button onClick={() => handleAddComment(story.id)} className="bg-slate-800 px-3 py-2 rounded-lg text-xs text-sky-400 font-semibold">Poster</button>
-            </div>
-          </div>
+                    <button onClick={() => handleAddComment(story.id)} className="bg-slate-800 px-3 py-2 rounded-lg text-xs text-sky-400 font-semibold">Poster</button>
+                  </div>
+                </div>
 
-        </article>
-      )
-    })}
-  </section>
-</main>
+              </article>
+            )
+          })}
+        </section>
+      </main>
 
-{/* BARRE DE NAVIGATION EN BAS */}
-<nav className="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 py-3 px-6 z-40">
-  <div className="max-w-md mx-auto flex justify-between items-center text-white">
-    
-    <Link href="/" className="hover:opacity-70 transition">
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 00-1 1m-6 0h6" />
-      </svg>
-    </Link>
+            {/* BARRE DE NAVIGATION EN BAS */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 py-3 px-6 z-40">
+        <div className="max-w-md mx-auto flex justify-between items-center text-white">
+          
+          <Link href="/" className="hover:opacity-70 transition">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 00-1 1m-6 0h6" />
+            </svg>
+          </Link>
 
-    <button onClick={() => alert('Fonctionnalité Reels bientôt disponible !')} className="hover:opacity-70 transition opacity-60">
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </button>
+          <button onClick={() => alert('Fonctionnalité Reels bientôt disponible !')} className="hover:opacity-70 transition opacity-60">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
 
-    <Link href="/messages" className="hover:opacity-70 transition">
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.6 11.2L4.8 2.6C3.9 2.1 2.9 3.1 3.4 4L12 20.8c.4.8 1.6.8 2 0l2.3-4.6 4.6-2.3c.8-.4.8-1.6 0-2z" />
-      </svg>
-    </Link>
+          <Link href="/messages" className="hover:opacity-70 transition">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.6 11.2L4.8 2.6C3.9 2.1 2.9 3.1 3.4 4L12 20.8c.4.8 1.6.8 2 0l2.3-4.6 4.6-2.3c.8-.4.8-1.6 0-2z" />
+            </svg>
+          </Link>
 
-    <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:opacity-70 transition">
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    </button>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:opacity-70 transition">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
 
-    
-    {/* BOUTON PROFIL DANS LA BARRE DU BAS */}
-<button onClick={() => setIsProfileOpen(true)} className="w-7 h-7 rounded-full overflow-hidden border border-white block">
-  {user?.user_metadata?.avatar_url ? (
-    <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" />
-  ) : (
-    <div className="w-full h-full bg-sky-600 flex items-center justify-center text-[10px] font-bold">
-      {user ? (user.user_metadata?.username || user.email).charAt(0).toUpperCase() : '👤'}
+          {/* LIEN PROFIL DANS LA BARRE DU BAS */}
+          <Link href="/mon-profil" className="w-7 h-7 rounded-full overflow-hidden border border-white block">
+            {user?.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-sky-600 flex items-center justify-center text-[10px] font-bold">
+                {user ? (user.user_metadata?.username || user.email).charAt(0).toUpperCase() : '👤'}
+              </div>
+            )}
+          </Link>
+
+        </div>
+      </nav>
+
     </div>
-  )}
-</button>
-  
-
-  </div>
-</nav>
-
-</div>
-)
-  }
-  
+  )
+        }
+        
