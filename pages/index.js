@@ -331,19 +331,20 @@ export default function Home() {
                 <div className="flex justify-between items-center">
                   
                   {/* PROFILE AUTEUR CLIQUABLE */}
-                  <Link href={story.user_id ? `/mon-profil` : '#'} className="flex items-center gap-3 hover:opacity-80">
-                    {story.avatar_url ? (
-                      <img src={story.avatar_url} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
-                        {story.author ? story.author.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
-                      <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
-                    </div>
-                  </Link>
+                  <div onClick={() => setIsProfileOpen(true)} className="flex items-center gap-3 cursor-pointer hover:opacity-80">
+  {story.avatar_url ? (
+    <img src={story.avatar_url} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
+  ) : (
+    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
+      {story.author ? story.author.charAt(0).toUpperCase() : 'U'}
+    </div>
+  )}
+  <div>
+    <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+    <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
+  </div>
+</div>
+
 
                   {/* BOUTON SUIVRE OU SUPPRIMER */}
                   <div className="flex items-center gap-2">
