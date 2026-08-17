@@ -305,12 +305,16 @@ export default function Home() {
                     <p className="text-xs text-slate-400">Par <span className="text-sky-400">{story.author}</span> • {new Date(story.created_at).toLocaleDateString()}</p>
                   </div>
                   {/* Bouton Supprimer */}
-                  <button 
-                    onClick={() => handleDeleteStory(story.id)} 
-                    className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-900/50">
-                    Supprimer
-                  </button>
-                </div>
+                  {/* Bouton Supprimer (affiché seulement si l'utilisateur est l'auteur) */}
+{user && story.user_id === user.id && (
+  <button
+    onClick={() => handleDeleteStory(story.id)}
+    className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-900/50"
+  >
+    Supprimer
+  </button>
+)}
+
 
                 <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">{story.content}</p>
 
