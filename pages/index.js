@@ -48,7 +48,7 @@ export default function Home() {
       .from('comments')
       .select('*')
       .order('created_at', { ascending: true })
-    
+
     if (!error && data) {
       const grouped = data.reduce((acc, comment) => {
         acc[comment.story_id] = acc[comment.story_id] || []
@@ -87,9 +87,9 @@ export default function Home() {
     e.preventDefault()
     if (!content.trim()) return
 
-    const authorName = isAnonymous 
-      ? 'Anonyme' 
-      : (user?.user_metadata?.username || user?.email?.split('@')[0] || 'Passager')
+    const authorName = isAnonymous
+      ? 'Anonyme'
+      : (user?.user_metadata?.username || user?.email?.split('@')[0] || 'Partager')
 
     const { error } = await supabase.from('stories').insert([
       {
@@ -121,7 +121,7 @@ export default function Home() {
     const commentText = newComment[storyId]
     if (!commentText?.trim()) return
 
-    const authorName = user 
+    const authorName = user
       ? (user.user_metadata?.username || user.email.split('@')[0])
       : 'Anonyme'
 
@@ -154,16 +154,18 @@ export default function Home() {
               <span className="text-sm text-slate-300">
                 👋 {user.user_metadata?.username || user.email.split('@')[0]}
               </span>
-              <button 
-                onClick={handleSignOut} 
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">
+              <button
+                onClick={handleSignOut}
+                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700"
+              >
                 Déconnexion
               </button>
             </div>
           ) : (
-            <button 
-              onClick={() => setIsAuthOpen(true)} 
-              className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-medium">
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-medium"
+            >
               Se connecter
             </button>
           )}
@@ -172,15 +174,18 @@ export default function Home() {
 
       {/* CONTENU PRINCIPAL */}
       <main className="max-w-2xl mx-auto w-full p-4 flex-grow space-y-8">
-        
+
         {/* MODAL AUTH */}
         {isAuthOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative">
-              <button 
-                onClick={() => setIsAuthOpen(false)} 
-                className="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
-              
+              <button
+                onClick={() => setIsAuthOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+
               <h2 className="text-xl font-bold mb-4">
                 {isSignUp ? 'Créer un compte' : 'Se connecter'}
               </h2>
@@ -192,7 +197,7 @@ export default function Home() {
                     placeholder="Ton pseudonyme"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-sky-500"
+                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
                     required
                   />
                 )}
@@ -201,7 +206,7 @@ export default function Home() {
                   placeholder="Adresse e-mail"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-sky-500"
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
                   required
                 />
                 <input
@@ -209,19 +214,23 @@ export default function Home() {
                   placeholder="Mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-sky-500"
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
                   required
                 />
-                <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-semibold">
+                <button
+                  type="submit"
+                  className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-semibold text-white"
+                >
                   {isSignUp ? "S'inscrire" : 'Se connecter'}
                 </button>
               </form>
 
               <p className="text-xs text-slate-400 mt-4 text-center">
-                {isSignUp ? "Déjà un compte ?" : "Pas encore de compte ?"} {' '}
-                <button 
-                  onClick={() => setIsSignUp(!isSignUp)} 
-                  className="text-sky-400 underline">
+                {isSignUp ? 'Déjà un compte ? ' : 'Pas encore de compte ? '}
+                <button
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-sky-400 underline font-medium"
+                >
                   {isSignUp ? 'Se connecter' : "S'inscrire"}
                 </button>
               </p>
@@ -232,7 +241,7 @@ export default function Home() {
         {/* BANNIÈRE D'EXPLICATION / COMMENT ÇA MARCHE */}
         <section className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
           <h2 className="text-lg font-bold text-sky-400 text-center">💡 Comment fonctionne JILD ?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
               <span className="text-lg">✍️</span>
               <h3 className="font-semibold text-slate-100">1. Exprime-toi</h3>
@@ -244,7 +253,7 @@ export default function Home() {
               <p className="text-slate-400">Lis les récits des autres et laisse un mot chaleureux en commentaire.</p>
             </div>
             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
-              <span className="text-lg">🛡️</span>
+              <span className="text-lg">🕊️</span>
               <h3 className="font-semibold text-slate-100">3. Espace Sérénité</h3>
               <p className="text-slate-400">Un lieu d'écoute sans jugement. Respect et bienveillance obligatoires.</p>
             </div>
@@ -267,23 +276,26 @@ export default function Home() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows="4"
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500 resize-none"
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500"
               required
             />
-            
+
             <div className="flex items-center justify-between text-xs text-slate-400">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={isAnonymous} 
-                  onChange={(e) => setIsAnonymous(e.target.checked)} 
+                <input
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
                   className="rounded border-slate-700"
                 />
                 Poster en mode 100% anonyme
               </label>
             </div>
 
-            <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-medium text-sm">
+            <button
+              type="submit"
+              className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-medium text-sm text-white"
+            >
               Partager mon histoire
             </button>
           </form>
@@ -302,28 +314,30 @@ export default function Home() {
                 <div className="flex justify-between items-start">
                   <div>
                     {story.title && <h3 className="font-semibold text-slate-100 mb-1">{story.title}</h3>}
-                    <p className="text-xs text-slate-400">Par <span className="text-sky-400">{story.author}</span> • {new Date(story.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-slate-400">
+                      Par <span className="text-sky-400">{story.author}</span>
+                    </p>
                   </div>
-                  {/* Bouton Supprimer */}
-                  {/* Bouton Supprimer (affiché seulement si l'utilisateur est l'auteur) */}
-{user && story.user_id === user.id && (
-  <button
-    onClick={() => handleDeleteStory(story.id)}
-    className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-900/50"
-  >
-    Supprimer
-  </button>
-)}
 
+                  {/* Bouton Supprimer uniquement pour l'auteur du post */}
+                  {user && story.user_id === user.id && (
+                    <button
+                      onClick={() => handleDeleteStory(story.id)}
+                      className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-900/50"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
 
-
-                <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">{story.content}</p>
+                <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">
+                  {story.content}
+                </p>
 
                 {/* SECTION COMMENTAIRES */}
                 <div className="pt-3 border-t border-slate-800/80 space-y-3">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Commentaires</h4>
-                  
-                  {/* Liste des commentaires */}
+
                   <div className="space-y-2">
                     {(comments[story.id] || []).map((c) => (
                       <div key={c.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/50 text-xs">
@@ -342,14 +356,14 @@ export default function Home() {
                       onChange={(e) => setNewComment({ ...newComment, [story.id]: e.target.value })}
                       className="flex-grow p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white outline-none focus:border-sky-500"
                     />
-                    <button 
+                    <button
                       onClick={() => handleAddComment(story.id)}
-                      className="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-xs font-medium text-sky-400 border border-slate-700">
+                      className="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-xs font-medium text-sky-400"
+                    >
                       Envoyer
                     </button>
                   </div>
                 </div>
-
               </article>
             ))
           )}
@@ -359,14 +373,14 @@ export default function Home() {
 
       {/* FOOTER & CHARTE */}
       <footer className="border-t border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-500 space-y-2">
-        <p className="font-semibold text-slate-400">JILD — Un espace libre & bienveillant</p>
-        <p className="max-w-md mx-auto leading-relaxed">
+        <p>JILD — Un espace libre & bienveillant</p>
+        <p>
           🚫 <strong className="text-slate-400">Règles & Modération :</strong> Les propos haineux, le harcèlement, la divulgation d'informations privées et les contenus illégaux sont strictement interdits.
         </p>
-        <p className="pt-2 text-slate-600">© 2026 JILD. Tous droits réservés.</p>
+        <p className="pt-2 text-slate-600">© {new Date().getFullYear()} JILD. Tous droits réservés.</p>
       </footer>
 
     </div>
   )
-                      }
-                      
+            }
+    
