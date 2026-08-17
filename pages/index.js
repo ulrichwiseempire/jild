@@ -425,16 +425,18 @@ export default function Home() {
       </svg>
     </button>
 
-    {/* LIEN PROFIL DANS LA BARRE DU BAS */}
-    <Link href="/mon-profil" className="w-7 h-7 rounded-full overflow-hidden border border-white block">
-      {user?.user_metadata?.avatar_url ? (
-        <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full bg-sky-600 flex items-center justify-center text-[10px] font-bold">
-          {user ? (user.user_metadata?.username || user.email).charAt(0).toUpperCase() : '👤'}
-        </div>
-      )}
-    </Link>
+    
+    {/* BOUTON PROFIL DANS LA BARRE DU BAS */}
+<button onClick={() => setIsProfileOpen(true)} className="w-7 h-7 rounded-full overflow-hidden border border-white block">
+  {user?.user_metadata?.avatar_url ? (
+    <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" />
+  ) : (
+    <div className="w-full h-full bg-sky-600 flex items-center justify-center text-[10px] font-bold">
+      {user ? (user.user_metadata?.username || user.email).charAt(0).toUpperCase() : '👤'}
+    </div>
+  )}
+</button>
+  
 
   </div>
 </nav>
