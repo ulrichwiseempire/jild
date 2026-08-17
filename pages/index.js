@@ -11,12 +11,19 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
 
+  // Posts, Commentaires, Likes & Recherche
   const [stories, setStories] = useState([])
   const [comments, setComments] = useState({})
+  const [likes, setLikes] = useState({})
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Formulaires
   const [content, setContent] = useState('')
   const [imageFile, setImageFile] = useState(null)
+  const [avatarFile, setAvatarFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [newComment, setNewComment] = useState({})
 
@@ -31,6 +38,7 @@ export default function Home() {
 
     fetchStories()
     fetchComments()
+    fetchLikes()
 
     return () => subscription.unsubscribe()
   }, [])
@@ -59,10 +67,22 @@ export default function Home() {
     }
   }
 
+  const fetchLikes = async () => {
+    const { data, error } = await supabase.from('likes').select('*')
+    if (!error && data) {
+      const grouped = data.reduce((acc, like) => {
+        acc[like.story_id] = acc[like.story_id] || []
+        acc[like.story_id].push(like.user_id)
+        return acc
+      }, {})
+      setLikes(grouped)
+    }
+  }
+
   const handleAuth = async (e) => {
     e.preventDefault()
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { username } }
@@ -79,8 +99,56 @@ export default function Home() {
     }
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    if (!user) return
+    setUploading(true)
+
+    let avatarUrl = user.user_metadata?.avatar_url || null
+
+    if (avatarFile) {
+      const fileExt = avatarFile.name.split('.').pop()
+      const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, avatarFile)
+
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
+        avatarUrl = publicUrlData.publicUrl
+      }
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        username: username || user.user_metadata?.username,
+        avatar_url: avatarUrl
+      }
+    })
+
+    setUploading(false)
+    if (error) alert('Erreur : ' + error.message)
+    else {
+      alert('Profil mis à jour !')
+      setIsProfileOpen(false)
+    }
+  }
+
+  const handleToggleLike = async (storyId) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+
+    const storyLikes = likes[storyId] || []
+    const hasLiked = storyLikes.includes(user.id)
+
+    if (hasLiked) {
+      await supabase.from('likes').delete().eq('story_id', storyId).eq('user_id', user.id)
+    } else {
+      await supabase.from('likes').insert([{ story_id: storyId, user_id: user.id }])
+    }
+    fetchLikes()
   }
 
   const handlePublish = async (e) => {
@@ -94,43 +162,33 @@ export default function Home() {
     setUploading(true)
     let imageUrl = null
 
-    // Upload de l'image si sélectionnée
     if (imageFile) {
       const fileExt = imageFile.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('posts')
-        .upload(fileName, imageFile)
+      const { error: uploadError } = await supabase.storage.from('posts').upload(fileName, imageFile)
 
-      if (uploadError) {
-        alert("Erreur lors de l'envoi de l'image : " + uploadError.message)
-        setUploading(false)
-        return
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName)
+        imageUrl = publicUrlData.publicUrl
       }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('posts')
-        .getPublicUrl(fileName)
-      
-      imageUrl = publicUrlData.publicUrl
     }
 
     const authorName = user.user_metadata?.username || user.email.split('@')[0]
+    const userAvatar = user.user_metadata?.avatar_url || null
 
     const { error } = await supabase.from('stories').insert([
       {
         content,
         author: authorName,
         user_id: user.id,
-        image_url: imageUrl
+        image_url: imageUrl,
+        avatar_url: userAvatar
       }
     ])
 
     setUploading(false)
-
-    if (error) {
-      alert('Erreur : ' + error.message)
-    } else {
+    if (error) alert('Erreur : ' + error.message)
+    else {
       setContent('')
       setImageFile(null)
       fetchStories()
@@ -138,10 +196,9 @@ export default function Home() {
   }
 
   const handleDeleteStory = async (id) => {
-    if (confirm('Voulez-vous vraiment supprimer ce post ?')) {
+    if (confirm('Voulez-vous supprimer ce post ?')) {
       const { error } = await supabase.from('stories').delete().eq('id', id)
-      if (error) alert('Erreur : ' + error.message)
-      else fetchStories()
+      if (!error) fetchStories()
     }
   }
 
@@ -164,47 +221,66 @@ export default function Home() {
       }
     ])
 
-    if (error) {
-      alert('Erreur : ' + error.message)
-    } else {
+    if (!error) {
       setNewComment({ ...newComment, [storyId]: '' })
       fetchComments()
     }
   }
 
-  const getUserInitial = (name) => {
-    return name ? name.charAt(0).toUpperCase() : 'U'
-  }
+  // Filtrage des posts selon la recherche
+  const filteredStories = stories.filter(story => 
+    story.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    story.author?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans">
       
-      {/* HEADER STYLE FACEBOOK */}
+      {/* HEADER FACEBOOK STYLE */}
       <header className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-40 backdrop-blur-md p-4">
-        <div className="max-w-2xl mx-auto flex justify-between items-center w-full">
-          <h1 className="text-2xl font-black tracking-wider text-sky-400">JILD</h1>
+        <div className="max-w-2xl mx-auto flex justify-between items-center gap-4">
+          <h1 className="text-2xl font-black text-sky-400">JILD</h1>
+
+          {/* BARRE DE RECHERCHE */}
+          <div className="flex-1 max-w-xs">
+            <input
+              type="text"
+              placeholder="🔍 Rechercher..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-full text-xs text-white outline-none focus:border-sky-500"
+            />
+          </div>
+
           <div>
             {user ? (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-sm">
-                  {getUserInitial(user.user_metadata?.username || user.email)}
-                </div>
-                <span className="text-sm font-medium text-slate-200 hidden sm:inline">
-                  {user.user_metadata?.username || user.email.split('@')[0]}
-                </span>
-                <button
-                  onClick={handleSignOut}
-                  className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700"
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsProfileOpen(true)}
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-700 transition"
                 >
-                  Déconnexion
+                  {user.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-sky-600 flex items-center justify-center text-xs font-bold">
+                      {(user.user_metadata?.username || user.email).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-xs hidden sm:inline">{user.user_metadata?.username || user.email.split('@')[0]}</span>
+                </button>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-xs text-slate-400 hover:text-white px-2 py-1"
+                >
+                  🚪
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setIsAuthOpen(true)}
-                className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-semibold"
+                className="text-xs bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-semibold"
               >
-                Se connecter
+                Connexion
               </button>
             )}
           </div>
@@ -214,38 +290,29 @@ export default function Home() {
       {/* CONTENU PRINCIPAL */}
       <main className="max-w-2xl mx-auto w-full p-4 flex-grow space-y-6">
 
-        {/* MODAL AUTH */}
+        {/* MODAL AUTHENTIFICATION */}
         {isAuthOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative">
-              <button
-                onClick={() => setIsAuthOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-
-              <h2 className="text-xl font-bold mb-4">
-                {isSignUp ? 'Rejoindre JILD' : 'Bienvenue sur JILD'}
-              </h2>
-
+              <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-slate-400">✕</button>
+              <h2 className="text-xl font-bold mb-4">{isSignUp ? 'Inscription' : 'Connexion'}</h2>
               <form onSubmit={handleAuth} className="space-y-4">
                 {isSignUp && (
                   <input
                     type="text"
-                    placeholder="Ton nom d'utilisateur"
+                    placeholder="Pseudo"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
+                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
                     required
                   />
                 )}
                 <input
                   type="email"
-                  placeholder="Adresse e-mail"
+                  placeholder="E-mail"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
                   required
                 />
                 <input
@@ -253,173 +320,182 @@ export default function Home() {
                   placeholder="Mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
                   required
                 />
-                <button
-                  type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-semibold text-white"
-                >
-                  {isSignUp ? "Créer mon compte" : 'Se connecter'}
+                <button type="submit" className="w-full bg-sky-600 py-3 rounded-xl font-semibold text-xs text-white">
+                  {isSignUp ? 'S\'inscrire' : 'Se connecter'}
                 </button>
               </form>
-
-              <p className="text-xs text-slate-400 mt-4 text-center">
-                {isSignUp ? 'Déjà un compte ? ' : 'Pas encore de compte ? '}
-                <button
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-sky-400 underline font-medium"
-                >
-                  {isSignUp ? 'Se connecter' : "S'inscrire"}
-                </button>
-              </p>
+              <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-sky-400 mt-4 block text-center w-full">
+                {isSignUp ? 'Déjà un compte ? Se connecter' : 'Créer un compte'}
+              </button>
             </div>
           </div>
         )}
 
-        {/* BOÎTE DE PUBLICATION STYLE FACEBOOK */}
+        {/* MODAL PROFIL */}
+        {isProfileOpen && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative space-y-4">
+              <button onClick={() => setIsProfileOpen(false)} className="absolute top-4 right-4 text-slate-400">✕</button>
+              <h2 className="text-xl font-bold">Mon Profil</h2>
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Changer le pseudo</label>
+                  <input
+                    type="text"
+                    placeholder="Nouveau pseudo"
+                    defaultValue={user?.user_metadata?.username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Photo de profil</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAvatarFile(e.target.files[0])}
+                    className="text-xs text-slate-400"
+                  />
+                </div>
+                <button type="submit" disabled={uploading} className="w-full bg-sky-600 py-3 rounded-xl font-semibold text-xs text-white">
+                  {uploading ? 'Mise à jour...' : 'Sauvegarder'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* BLOC DE PUBLICATION */}
         <section className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
           <div className="flex gap-3 items-center">
-            <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold">
-              {user ? getUserInitial(user.user_metadata?.username || user.email) : '👤'}
-            </div>
+            {user?.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold">
+                {user ? (user.user_metadata?.username || user.email).charAt(0).toUpperCase() : '👤'}
+              </div>
+            )}
             <textarea
-              placeholder={user ? `Qu'as-tu à dire aujourd'hui, ${user.user_metadata?.username || user.email.split('@')[0]} ?` : "Connecte-toi pour publier un message..."}
+              placeholder={user ? `Qu'as-tu à dire aujourd'hui, ${user.user_metadata?.username || user.email.split('@')[0]} ?` : "Connecte-toi pour publier..."}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onClick={() => { if (!user) setIsAuthOpen(true) }}
-              rows="3"
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500 resize-none"
+              rows="2"
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none resize-none"
             />
           </div>
 
-          {/* APERÇU DE L'IMAGE CHOISIE */}
           {imageFile && (
             <div className="relative mt-2">
-              <img src={URL.createObjectURL(imageFile)} alt="Aperçu" className="max-h-48 rounded-xl object-cover w-full border border-slate-800" />
-              <button 
-                onClick={() => setImageFile(null)}
-                className="absolute top-2 right-2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-              >
-                ✕
-              </button>
+              <img src={URL.createObjectURL(imageFile)} alt="Aperçu" className="max-h-40 rounded-xl object-cover w-full" />
+              <button onClick={() => setImageFile(null)} className="absolute top-2 right-2 bg-black/70 text-white rounded-full w-6 h-6 text-xs">✕</button>
             </div>
           )}
 
-          <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-sky-400 transition">
-              <span className="text-base">📷</span> Ajouter une photo
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  if (!user) setIsAuthOpen(true)
-                  else if (e.target.files[0]) setImageFile(e.target.files[0])
-                }}
-              />
+          <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-sky-400">
+              📷 Ajouter une photo
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (!user) setIsAuthOpen(true); else setImageFile(e.target.files[0]) }} />
             </label>
-
-            <button
-              onClick={handlePublish}
-              disabled={uploading}
-              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 px-5 py-2 rounded-xl font-semibold text-xs text-white transition"
-            >
+            <button onClick={handlePublish} disabled={uploading} className="bg-sky-600 hover:bg-sky-500 px-5 py-2 rounded-xl font-semibold text-xs text-white">
               {uploading ? 'Publication...' : 'Publier'}
             </button>
           </div>
         </section>
 
-        {/* FIL D'ACTUALITÉ / POSTS */}
+        {/* FEED / PUBLICATIONS */}
         <section className="space-y-4">
-          {stories.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-8">
-              Aucune publication pour le moment.
-            </p>
+          {filteredStories.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">Aucun résultat pour cette recherche.</p>
           ) : (
-            stories.map((story) => (
-              <article key={story.id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
-                
-                {/* EN-TÊTE DU POST */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
-                      {getUserInitial(story.author)}
+            filteredStories.map((story) => {
+              const storyLikes = likes[story.id] || []
+              const hasLiked = user && storyLikes.includes(user.id)
+
+              return (
+                <article key={story.id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+                  
+                  {/* EN-TÊTE DU POST */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      {story.avatar_url ? (
+                        <img src={story.avatar_url} alt="Avatar" className="w-9 h-9 rounded-full object-cover border border-slate-700" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
+                          {story.author ? story.author.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+                        <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
-                      <p className="text-[10px] text-slate-500">
-                        {new Date(story.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
+
+                    {user && story.user_id === user.id && (
+                      <button onClick={() => handleDeleteStory(story.id)} className="text-xs text-red-400 bg-red-950/40 px-2 py-1 rounded-lg">Supprimer</button>
+                    )}
                   </div>
 
-                  {user && story.user_id === user.id && (
-                    <button
-                      onClick={() => handleDeleteStory(story.id)}
-                      className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2 py-1 rounded-lg border border-red-900/50"
-                    >
-                      Supprimer
-                    </button>
+                  {story.content && <p className="text-slate-300 text-sm whitespace-pre-line">{story.content}</p>}
+
+                  {story.image_url && (
+                    <div className="rounded-xl overflow-hidden border border-slate-800">
+                      <img src={story.image_url} alt="Post" className="w-full max-h-96 object-cover" />
+                    </div>
                   )}
-                </div>
 
-                {/* TEXTE DU POST */}
-                {story.content && (
-                  <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">
-                    {story.content}
-                  </p>
-                )}
-
-                {/* IMAGE DU POST */}
-                {story.image_url && (
-                  <div className="rounded-xl overflow-hidden border border-slate-800">
-                    <img src={story.image_url} alt="Publication" className="w-full max-h-96 object-cover" />
+                  {/* BARRE INTERACTION (LIKES) */}
+                  <div className="flex items-center gap-4 pt-2 text-xs text-slate-400">
+                    <button 
+                      onClick={() => handleToggleLike(story.id)}
+                      className={`flex items-center gap-1.5 font-medium transition ${hasLiked ? 'text-red-500' : 'hover:text-red-400'}`}
+                    >
+                      <span>{hasLiked ? '❤️' : '🤍'}</span>
+                      <span>{storyLikes.length} {storyLikes.length > 1 ? 'J\'aime' : 'J\'aime'}</span>
+                    </button>
+                    <span>💬 {(comments[story.id] || []).length} Commentaires</span>
                   </div>
-                )}
 
-                {/* SECTION COMMENTAIRES */}
-                <div className="pt-3 border-t border-slate-800/80 space-y-3">
-                  <div className="space-y-2">
+                  {/* COMMENTAIRES */}
+                  <div className="pt-2 border-t border-slate-800 space-y-2">
                     {(comments[story.id] || []).map((c) => (
-                      <div key={c.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/50 text-xs">
+                      <div key={c.id} className="bg-slate-950 p-2 rounded-xl border border-slate-800/50 text-xs">
                         <span className="font-semibold text-sky-400">{c.author_name} : </span>
                         <span className="text-slate-300">{c.content}</span>
                       </div>
                     ))}
+
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Commenter..."
+                        value={newComment[story.id] || ''}
+                        onChange={(e) => setNewComment({ ...newComment, [story.id]: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(story.id) }}
+                        className="flex-grow p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white outline-none"
+                      />
+                      <button onClick={() => handleAddComment(story.id)} className="bg-slate-800 px-3 py-2 rounded-lg text-xs text-sky-400 font-semibold">
+                        Poster
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Écrire un commentaire..."
-                      value={newComment[story.id] || ''}
-                      onChange={(e) => setNewComment({ ...newComment, [story.id]: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(story.id) }}
-                      className="flex-grow p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white outline-none focus:border-sky-500"
-                    />
-                    <button
-                      onClick={() => handleAddComment(story.id)}
-                      className="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400"
-                    >
-                      Envoyer
-                    </button>
-                  </div>
-                </div>
-
-              </article>
-            ))
+                </article>
+              )
+            })
           )}
         </section>
 
       </main>
 
-      {/* FOOTER */}
       <footer className="border-t border-slate-800 bg-slate-950 p-4 text-center text-xs text-slate-500">
-        <p>© {new Date().getFullYear()} JILD — Réseau social libre & bienveillant</p>
+        <p>© {new Date().getFullYear()} JILD — Plateforme Sociale</p>
       </footer>
 
     </div>
   )
-}
-  
+                }
+                    
