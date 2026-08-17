@@ -15,9 +15,9 @@ export default function Home() {
 
   const [stories, setStories] = useState([])
   const [comments, setComments] = useState({})
-  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [imageFile, setImageFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const [newComment, setNewComment] = useState({})
 
   useEffect(() => {
@@ -85,32 +85,60 @@ export default function Home() {
 
   const handlePublish = async (e) => {
     e.preventDefault()
-    if (!content.trim()) return
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+    if (!content.trim() && !imageFile) return
 
-    const authorName = isAnonymous
-      ? 'Anonyme'
-      : (user?.user_metadata?.username || user?.email?.split('@')[0] || 'Partager')
+    setUploading(true)
+    let imageUrl = null
+
+    // Upload de l'image si sélectionnée
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop()
+      const fileName = `${Date.now()}.${fileExt}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(fileName, imageFile)
+
+      if (uploadError) {
+        alert("Erreur lors de l'envoi de l'image : " + uploadError.message)
+        setUploading(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('posts')
+        .getPublicUrl(fileName)
+      
+      imageUrl = publicUrlData.publicUrl
+    }
+
+    const authorName = user.user_metadata?.username || user.email.split('@')[0]
 
     const { error } = await supabase.from('stories').insert([
       {
-        title: title || null,
         content,
         author: authorName,
-        user_id: user?.id || null
+        user_id: user.id,
+        image_url: imageUrl
       }
     ])
+
+    setUploading(false)
 
     if (error) {
       alert('Erreur : ' + error.message)
     } else {
-      setTitle('')
       setContent('')
+      setImageFile(null)
       fetchStories()
     }
   }
 
   const handleDeleteStory = async (id) => {
-    if (confirm('Es-tu sûr de vouloir supprimer ce récit ?')) {
+    if (confirm('Voulez-vous vraiment supprimer ce post ?')) {
       const { error } = await supabase.from('stories').delete().eq('id', id)
       if (error) alert('Erreur : ' + error.message)
       else fetchStories()
@@ -118,19 +146,21 @@ export default function Home() {
   }
 
   const handleAddComment = async (storyId) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
     const commentText = newComment[storyId]
     if (!commentText?.trim()) return
 
-    const authorName = user
-      ? (user.user_metadata?.username || user.email.split('@')[0])
-      : 'Anonyme'
+    const authorName = user.user_metadata?.username || user.email.split('@')[0]
 
     const { error } = await supabase.from('comments').insert([
       {
         story_id: storyId,
         content: commentText,
         author_name: authorName,
-        user_id: user?.id || null
+        user_id: user.id
       }
     ])
 
@@ -142,38 +172,47 @@ export default function Home() {
     }
   }
 
+  const getUserInitial = (name) => {
+    return name ? name.charAt(0).toUpperCase() : 'U'
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans">
       
-      {/* HEADER */}
-      <header className="border-b border-slate-800 p-4 flex justify-between items-center max-w-2xl mx-auto w-full">
-        <h1 className="text-2xl font-bold tracking-wider text-sky-400">JILD</h1>
-        <div>
-          {user ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-300">
-                👋 {user.user_metadata?.username || user.email.split('@')[0]}
-              </span>
+      {/* HEADER STYLE FACEBOOK */}
+      <header className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-40 backdrop-blur-md p-4">
+        <div className="max-w-2xl mx-auto flex justify-between items-center w-full">
+          <h1 className="text-2xl font-black tracking-wider text-sky-400">JILD</h1>
+          <div>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-sm">
+                  {getUserInitial(user.user_metadata?.username || user.email)}
+                </div>
+                <span className="text-sm font-medium text-slate-200 hidden sm:inline">
+                  {user.user_metadata?.username || user.email.split('@')[0]}
+                </span>
+                <button
+                  onClick={handleSignOut}
+                  className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleSignOut}
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700"
+                onClick={() => setIsAuthOpen(true)}
+                className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-semibold"
               >
-                Déconnexion
+                Se connecter
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg font-medium"
-            >
-              Se connecter
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
       {/* CONTENU PRINCIPAL */}
-      <main className="max-w-2xl mx-auto w-full p-4 flex-grow space-y-8">
+      <main className="max-w-2xl mx-auto w-full p-4 flex-grow space-y-6">
 
         {/* MODAL AUTH */}
         {isAuthOpen && (
@@ -187,14 +226,14 @@ export default function Home() {
               </button>
 
               <h2 className="text-xl font-bold mb-4">
-                {isSignUp ? 'Créer un compte' : 'Se connecter'}
+                {isSignUp ? 'Rejoindre JILD' : 'Bienvenue sur JILD'}
               </h2>
 
               <form onSubmit={handleAuth} className="space-y-4">
                 {isSignUp && (
                   <input
                     type="text"
-                    placeholder="Ton pseudonyme"
+                    placeholder="Ton nom d'utilisateur"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-sky-500 text-sm"
@@ -221,7 +260,7 @@ export default function Home() {
                   type="submit"
                   className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-semibold text-white"
                 >
-                  {isSignUp ? "S'inscrire" : 'Se connecter'}
+                  {isSignUp ? "Créer mon compte" : 'Se connecter'}
                 </button>
               </form>
 
@@ -238,106 +277,109 @@ export default function Home() {
           </div>
         )}
 
-        {/* BANNIÈRE D'EXPLICATION / COMMENT ÇA MARCHE */}
-        <section className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
-          <h2 className="text-lg font-bold text-sky-400 text-center">💡 Comment fonctionne JILD ?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
-              <span className="text-lg">✍️</span>
-              <h3 className="font-semibold text-slate-100">1. Exprime-toi</h3>
-              <p className="text-slate-400">Partage tes pensées ou ton histoire, avec ton pseudo ou en mode 100% anonyme.</p>
+        {/* BOÎTE DE PUBLICATION STYLE FACEBOOK */}
+        <section className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+          <div className="flex gap-3 items-center">
+            <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold">
+              {user ? getUserInitial(user.user_metadata?.username || user.email) : '👤'}
             </div>
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
-              <span className="text-lg">💬</span>
-              <h3 className="font-semibold text-slate-100">2. Échange & Soutiens</h3>
-              <p className="text-slate-400">Lis les récits des autres et laisse un mot chaleureux en commentaire.</p>
+            <textarea
+              placeholder={user ? `Qu'as-tu à dire aujourd'hui, ${user.user_metadata?.username || user.email.split('@')[0]} ?` : "Connecte-toi pour publier un message..."}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onClick={() => { if (!user) setIsAuthOpen(true) }}
+              rows="3"
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500 resize-none"
+            />
+          </div>
+
+          {/* APERÇU DE L'IMAGE CHOISIE */}
+          {imageFile && (
+            <div className="relative mt-2">
+              <img src={URL.createObjectURL(imageFile)} alt="Aperçu" className="max-h-48 rounded-xl object-cover w-full border border-slate-800" />
+              <button 
+                onClick={() => setImageFile(null)}
+                className="absolute top-2 right-2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
             </div>
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
-              <span className="text-lg">🕊️</span>
-              <h3 className="font-semibold text-slate-100">3. Espace Sérénité</h3>
-              <p className="text-slate-400">Un lieu d'écoute sans jugement. Respect et bienveillance obligatoires.</p>
-            </div>
+          )}
+
+          <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-sky-400 transition">
+              <span className="text-base">📷</span> Ajouter une photo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (!user) setIsAuthOpen(true)
+                  else if (e.target.files[0]) setImageFile(e.target.files[0])
+                }}
+              />
+            </label>
+
+            <button
+              onClick={handlePublish}
+              disabled={uploading}
+              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 px-5 py-2 rounded-xl font-semibold text-xs text-white transition"
+            >
+              {uploading ? 'Publication...' : 'Publier'}
+            </button>
           </div>
         </section>
 
-        {/* FORMULAIRE POST */}
-        <section className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
-          <h2 className="text-lg font-semibold text-slate-200">Raconter ton histoire</h2>
-          <form onSubmit={handlePublish} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Titre de ton récit (optionnel)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500"
-            />
-            <textarea
-              placeholder="Libère ce que tu as sur le cœur..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows="4"
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm outline-none focus:border-sky-500"
-              required
-            />
-
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="rounded border-slate-700"
-                />
-                Poster en mode 100% anonyme
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-xl font-medium text-sm text-white"
-            >
-              Partager mon histoire
-            </button>
-          </form>
-        </section>
-
-        {/* FLUX DE MESSAGES */}
+        {/* FIL D'ACTUALITÉ / POSTS */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-200">Les histoires partagées</h2>
           {stories.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-6">
-              Aucune histoire pour le moment. Sois le premier à t'exprimer...
+            <p className="text-slate-500 text-sm text-center py-8">
+              Aucune publication pour le moment.
             </p>
           ) : (
             stories.map((story) => (
-              <article key={story.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    {story.title && <h3 className="font-semibold text-slate-100 mb-1">{story.title}</h3>}
-                    <p className="text-xs text-slate-400">
-                      Par <span className="text-sky-400">{story.author}</span>
-                    </p>
+              <article key={story.id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+                
+                {/* EN-TÊTE DU POST */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
+                      {getUserInitial(story.author)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {new Date(story.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Bouton Supprimer uniquement pour l'auteur du post */}
                   {user && story.user_id === user.id && (
                     <button
                       onClick={() => handleDeleteStory(story.id)}
-                      className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-900/50"
+                      className="text-xs text-red-400 hover:text-red-300 bg-red-950/40 px-2 py-1 rounded-lg border border-red-900/50"
                     >
                       Supprimer
                     </button>
                   )}
                 </div>
 
-                <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">
-                  {story.content}
-                </p>
+                {/* TEXTE DU POST */}
+                {story.content && (
+                  <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">
+                    {story.content}
+                  </p>
+                )}
+
+                {/* IMAGE DU POST */}
+                {story.image_url && (
+                  <div className="rounded-xl overflow-hidden border border-slate-800">
+                    <img src={story.image_url} alt="Publication" className="w-full max-h-96 object-cover" />
+                  </div>
+                )}
 
                 {/* SECTION COMMENTAIRES */}
                 <div className="pt-3 border-t border-slate-800/80 space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Commentaires</h4>
-
                   <div className="space-y-2">
                     {(comments[story.id] || []).map((c) => (
                       <div key={c.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/50 text-xs">
@@ -347,23 +389,24 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Ajouter un commentaire */}
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Laisser un mot de soutien..."
+                      placeholder="Écrire un commentaire..."
                       value={newComment[story.id] || ''}
                       onChange={(e) => setNewComment({ ...newComment, [story.id]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(story.id) }}
                       className="flex-grow p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white outline-none focus:border-sky-500"
                     />
                     <button
                       onClick={() => handleAddComment(story.id)}
-                      className="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-xs font-medium text-sky-400"
+                      className="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400"
                     >
                       Envoyer
                     </button>
                   </div>
                 </div>
+
               </article>
             ))
           )}
@@ -371,16 +414,12 @@ export default function Home() {
 
       </main>
 
-      {/* FOOTER & CHARTE */}
-      <footer className="border-t border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-500 space-y-2">
-        <p>JILD — Un espace libre & bienveillant</p>
-        <p>
-          🚫 <strong className="text-slate-400">Règles & Modération :</strong> Les propos haineux, le harcèlement, la divulgation d'informations privées et les contenus illégaux sont strictement interdits.
-        </p>
-        <p className="pt-2 text-slate-600">© {new Date().getFullYear()} JILD. Tous droits réservés.</p>
+      {/* FOOTER */}
+      <footer className="border-t border-slate-800 bg-slate-950 p-4 text-center text-xs text-slate-500">
+        <p>© {new Date().getFullYear()} JILD — Réseau social libre & bienveillant</p>
       </footer>
 
     </div>
   )
-            }
-    
+}
+  
