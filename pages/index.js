@@ -316,6 +316,7 @@ export default function Home() {
 )}
 
 
+
                 <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">{story.content}</p>
 
                 {/* SECTION COMMENTAIRES */}
