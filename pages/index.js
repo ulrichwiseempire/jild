@@ -14,10 +14,11 @@ export default function Home() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
 
-  // Posts, Commentaires, Likes & Recherche
+  // Posts, Commentaires, Likes, Follows & Recherche
   const [stories, setStories] = useState([])
   const [comments, setComments] = useState({})
   const [likes, setLikes] = useState({})
+  const [following, setFollowing] = useState([]) // Liste des personnes qu'on suit
   const [searchQuery, setSearchQuery] = useState('')
 
   // Formulaires
@@ -42,6 +43,15 @@ export default function Home() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Charger la liste des abonnements quand l'utilisateur est connecté
+  useEffect(() => {
+    if (user) {
+      fetchFollowing()
+    } else {
+      setFollowing([])
+    }
+  }, [user])
 
   const fetchStories = async () => {
     const { data, error } = await supabase
@@ -76,6 +86,47 @@ export default function Home() {
         return acc
       }, {})
       setLikes(grouped)
+    }
+  }
+
+  const fetchFollowing = async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+    
+    if (!error && data) {
+      setFollowing(data.map(item => item.following_id))
+    }
+  }
+
+  const handleToggleFollow = async (authorId) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+
+    const isCurrentlyFollowing = following.includes(authorId)
+
+    if (isCurrentlyFollowing) {
+      const { error } = await supabase
+        .from('follows')
+        .delete()
+        .eq('follower_id', user.id)
+        .eq('following_id', authorId)
+
+      if (!error) {
+        setFollowing(following.filter(id => id !== authorId))
+      }
+    } else {
+      const { error } = await supabase
+        .from('follows')
+        .insert([{ follower_id: user.id, following_id: authorId }])
+
+      if (!error) {
+        setFollowing([...following, authorId])
+      }
     }
   }
 
@@ -414,6 +465,7 @@ export default function Home() {
             filteredStories.map((story) => {
               const storyLikes = likes[story.id] || []
               const hasLiked = user && storyLikes.includes(user.id)
+              const isFollowingAuthor = following.includes(story.user_id)
 
               return (
                 <article key={story.id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
@@ -429,7 +481,23 @@ export default function Home() {
                         </div>
                       )}
                       <div>
-                        <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-200 text-sm">{story.author}</p>
+                          
+                          {/* BOUTON SUIVRE / S'ABONNER */}
+                          {user && story.user_id && story.user_id !== user.id && (
+                            <button
+                              onClick={() => handleToggleFollow(story.user_id)}
+                              className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold transition ${
+                                isFollowingAuthor
+                                  ? 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                                  : 'bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white'
+                              }`}
+                            >
+                              {isFollowingAuthor ? 'Abonné' : '+ Suivre'}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-500">{new Date(story.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -450,7 +518,7 @@ export default function Home() {
                   {/* BARRE INTERACTION (LIKES) */}
                   <div className="flex items-center gap-4 pt-2 text-xs text-slate-400">
                     <button 
-                      onClick={() => handleToggleLike(story.id)}
+                                            onClick={() => handleToggleLike(story.id)}
                       className={`flex items-center gap-1.5 font-medium transition ${hasLiked ? 'text-red-500' : 'hover:text-red-400'}`}
                     >
                       <span>{hasLiked ? '❤️' : '🤍'}</span>
@@ -497,5 +565,4 @@ export default function Home() {
 
     </div>
   )
-                }
-                    
+}
