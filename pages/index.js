@@ -229,6 +229,28 @@ export default function Home() {
           </div>
         )}
 
+        {/* BANNIÈRE D'EXPLICATION / COMMENT ÇA MARCHE */}
+        <section className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
+          <h2 className="text-lg font-bold text-sky-400 text-center">💡 Comment fonctionne JILD ?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300 pt-2">
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
+              <span className="text-lg">✍️</span>
+              <h3 className="font-semibold text-slate-100">1. Exprime-toi</h3>
+              <p className="text-slate-400">Partage tes pensées ou ton histoire, avec ton pseudo ou en mode 100% anonyme.</p>
+            </div>
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
+              <span className="text-lg">💬</span>
+              <h3 className="font-semibold text-slate-100">2. Échange & Soutiens</h3>
+              <p className="text-slate-400">Lis les récits des autres et laisse un mot chaleureux en commentaire.</p>
+            </div>
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 space-y-1">
+              <span className="text-lg">🛡️</span>
+              <h3 className="font-semibold text-slate-100">3. Espace Sérénité</h3>
+              <p className="text-slate-400">Un lieu d'écoute sans jugement. Respect et bienveillance obligatoires.</p>
+            </div>
+          </div>
+        </section>
+
         {/* FORMULAIRE POST */}
         <section className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
           <h2 className="text-lg font-semibold text-slate-200">Raconter ton histoire</h2>
@@ -334,12 +356,12 @@ export default function Home() {
       <footer className="border-t border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-500 space-y-2">
         <p className="font-semibold text-slate-400">JILD — Un espace libre & bienveillant</p>
         <p className="max-w-md mx-auto leading-relaxed">
-          🚫 <strong className="text-slate-400">Règles & Modération :</strong> Les propos haineux, le harcèlement, la divulgation d'informations privées et les contenus illégaux sont strictly interdits.
+          🚫 <strong className="text-slate-400">Règles & Modération :</strong> Les propos haineux, le harcèlement, la divulgation d'informations privées et les contenus illégaux sont strictement interdits.
         </p>
         <p className="pt-2 text-slate-600">© 2026 JILD. Tous droits réservés.</p>
       </footer>
 
     </div>
   )
-          }
-                    
+                      }
+                      
