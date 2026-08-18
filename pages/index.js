@@ -409,21 +409,22 @@ export default function Home() {
           />
         </div>
 
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 space-y-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Suggestions pour vous</h3>
-          {['Marilyne', 'Kevin_228', 'Dounia_J'].map((sug, i) => (
-            <div key={i} className="flex justify-between items-center">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-slate
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-300">
-                  {sug[0]}
-                </div>
-                <span className="text-xs font-medium text-slate-200">{sug}</span>
+                    <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 space-y-4">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Suggestions pour vous</h3>
+        {['Marilyne', 'Kevin_228', 'Dounia_J'].map((sug, i) => (
+          <div key={i} className="flex justify-between items-center">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-300">
+                {sug[0]}
               </div>
-              <button className="text-[11px] text-cyan-400 font-bold hover:underline">Suivre</button>
+              <span className="text-xs font-medium text-slate-200">{sug}</span>
             </div>
-          ))}
-        </div>
+            <button className="text-[11px] text-cyan-400 font-bold hover:underline">Suivre</button>
+          </div>
+        ))}
+      </div>
+          
+          
       </aside>
 
       {/* ─────────────────────────────────────────────────────────────
