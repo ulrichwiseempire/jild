@@ -576,28 +576,58 @@ export default function Home() {
       </div>
     </nav>
 
-    {/* MODALE AUTHENTIFICATION */}
+        {/* MODALE AUTHENTIFICATION */}
     {isAuthOpen && (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl w-full max-w-sm relative shadow-2xl space-y-4">
           <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-slate-400">✕</button>
+          
           <div className="text-center space-y-1">
             <h2 className="text-xl font-black text-jild-gradient">{isSignUp ? 'Rejoindre JILD' : 'Bienvenue sur JILD'}</h2>
             <p className="text-xs text-slate-400">Connecte-toi pour interagir avec la communauté.</p>
           </div>
+
           <form onSubmit={handleAuth} className="space-y-3">
-            {isSignUp && <input type="text" placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" required />}
-            <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" required />
-            <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" required />
-            <button type="submit" className="w-full bg-jild-gradient py-3 rounded-xl font-bold text-xs text-white shadow-lg shadow-purple-500/20">{isSignUp ? 'S\'inscrire' : 'Se connecter'}</button>
+            {isSignUp && (
+              <input 
+                type="text" 
+                placeholder="Pseudo" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" 
+                required 
+              />
+            )}
+            <input 
+              type="email" 
+              placeholder="E-mail" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" 
+              required 
+            />
+            <input 
+              type="password" 
+              placeholder="Mot de passe" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-cyan-500" 
+              required 
+            />
+            <button type="submit" className="w-full bg-jild-gradient py-3 rounded-xl font-bold text-xs text-white shadow-lg shadow-purple-500/20">
+              {isSignUp ? 'S\'inscrire' : 'Se connecter'}
+            </button>
           </form>
+
           <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-cyan-400 text-center w-full block">
             {isSignUp ? 'Déjà un compte ? Connexion' : 'Pas de compte ? Créer un compte'}
           </button>
         </div>
-      )}
+      </div>
+    )}
 
-    </div>
-  )
-              }
+  </div>
+)
+                }
+                
           
