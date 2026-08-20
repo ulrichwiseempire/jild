@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useRouter } from 'next/router'
-import { Home, Search, Bell, Mail, ArrowLeft, Camera } from 'lucide-react'
+import { Home, Search, Bell, Mail, ArrowLeft, Camera, User, Edit3, Check } from 'lucide-react'
 
 export default function Profile() {
   const router = useRouter()
@@ -9,6 +9,12 @@ export default function Profile() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+
+  // États pour l'édition
+  const [fullName, setFullName] = useState('')
+  const [username, setUsername] = useState('')
+  const [bio, setBio] = useState('')
 
   useEffect(() => {
     getProfile()
@@ -25,28 +31,59 @@ export default function Profile() {
 
     setUser(user)
 
-    // Récupérer le profil
     let { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle()
 
-    // Si le profil n'existe pas encore dans la table, on le crée
+    // Si le profil n'existe pas encore, on extrait le nom depuis l'email/metadonnées
     if (!data) {
+      const defaultUsername = user.email ? user.email.split('@')[0] : 'utilisateur'
       const defaultProfile = {
         id: user.id,
-        full_name: 'Ulrichwiseboy',
-        username: 'ulrichwiseboy',
-        bio: 'L\'IA et l\'automation au service du style. Créateur de l\'écosystème WiseEmpire.',
+        full_name: user.user_metadata?.full_name || defaultUsername,
+        username: defaultUsername,
+        bio: '',
       }
       await supabase.from('profiles').insert([defaultProfile])
       setProfile(defaultProfile)
+      setFullName(defaultProfile.full_name)
+      setUsername(defaultProfile.username)
+      setBio('')
     } else {
       setProfile(data)
+      setFullName(data.full_name || '')
+      setUsername(data.username || '')
+      setBio(data.bio || '')
     }
 
     setLoading(false)
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const updates = {
+        id: user.id,
+        full_name: fullName,
+        username: username,
+        bio: bio,
+        updated_at: new Date(),
+      }
+
+      let { error } = await supabase.from('profiles').upsert(updates)
+      if (error) throw error
+
+      setProfile({ ...profile, ...updates })
+      setIsEditing(false)
+      alert('Profil mis à jour !')
+    } catch (error) {
+      alert('Erreur lors de la mise à jour : ' + error.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const uploadAvatar = async (event) => {
@@ -91,14 +128,14 @@ export default function Profile() {
         </button>
         <div>
           <h1 className="font-bold text-base leading-tight">
-            {profile?.full_name || 'Profil'}
+            {profile?.full_name || 'Mon Profil'}
           </h1>
-          <p className="text-xs text-[#71767B]">@{profile?.username || 'anonyme'}</p>
+          <p className="text-xs text-[#71767B]">@{profile?.username || 'utilisateur'}</p>
         </div>
       </header>
 
       {loading ? (
-        <div className="p-8 text-center text-[#71767B] text-sm">Chargement...</div>
+        <div className="p-8 text-center text-[#71767B] text-sm">Chargement du profil...</div>
       ) : (
         <div>
           <div className="h-32 bg-[#202327]"></div>
@@ -116,12 +153,61 @@ export default function Profile() {
                 <input type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
               </label>
             </div>
+
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="border border-[#536471] hover:bg-white/10 font-bold px-4 py-1.5 rounded-full text-xs text-white transition flex items-center gap-1.5"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              {isEditing ? 'Annuler' : 'Éditer le profil'}
+            </button>
           </div>
 
+          {/* Formulaire d'édition ou affichage normal */}
           <div className="px-4">
-            <h2 className="font-bold text-xl">{profile?.full_name}</h2>
-            <p className="text-[#71767B] text-sm">@{profile?.username}</p>
-            <p className="mt-3 text-sm">{profile?.bio}</p>
+            {isEditing ? (
+              <form onSubmit={handleUpdateProfile} className="space-y-3 mt-4">
+                <div>
+                  <label className="text-xs text-[#71767B]">Nom complet</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none focus:border-[#1D9BF0]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[#71767B]">Nom d'utilisateur (@pseudo)</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none focus:border-[#1D9BF0]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[#71767B]">Bio</label>
+                  <textarea
+                    rows="2"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none focus:border-[#1D9BF0] resize-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-[#1D9BF0] font-bold py-2 rounded-full text-xs text-white hover:bg-blue-500 transition"
+                >
+                  Enregistrer les modifications
+                </button>
+              </form>
+            ) : (
+              <div>
+                <h2 className="font-bold text-xl">{profile?.full_name || 'Utilisateur'}</h2>
+                <p className="text-[#71767B] text-sm">@{profile?.username || 'anonyme'}</p>
+                <p className="mt-3 text-sm whitespace-pre-line">{profile?.bio || 'Aucune biographie pour le moment.'}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -137,5 +223,5 @@ export default function Profile() {
       </nav>
     </div>
   )
-                }
-                
+        }
+        
