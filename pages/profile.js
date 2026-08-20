@@ -1,143 +1,145 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useRouter } from 'next/router';
-import { User, Camera, Settings, LogOut, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { useRouter } from 'next/router'
+import { Home, Search, Bell, Mail, Plus, User, ArrowLeft, Camera } from 'lucide-react'
 
 export default function Profile() {
-  const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [bio, setBio] = useState('');
-  const router = Router();
+  const router = useRouter()
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    getProfile();
-  }, []);
+    getProfile()
+  }, [])
 
-  async function getProfile() {
+  const getProfile = async () => {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push('/auth')
+      return
+    }
+
+    setUser(user)
+
+    let { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (data) {
+      setProfile(data)
+    }
+    setLoading(false)
+  }
+
+  const uploadAvatar = async (event) => {
     try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      setUploading(true)
 
-      if (!user) {
-        router.push('/');
-        return;
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('Vous devez sélectionner une image.')
       }
 
-      let { data, error } = await supabase
+      const file = event.target.files[0]
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${user.id}-${Math.random()}.${fileExt}`
+
+      let { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const avatarUrl = publicUrlData.publicUrl
+
+      const { error: updateError } = await supabase
         .from('profiles')
-        .select(`username, avatar_url, bio`)
-        .eq('id', user.id)
-        .single();
+        .upsert({ id: user.id, avatar_url: avatarUrl, updated_at: new Date() })
 
-      if (data) {
-        setUsername(data.username || '');
-        setAvatarUrl(data.avatar_url || '');
-        setBio(data.bio || '');
-      }
+      if (updateError) throw updateError
+
+      setProfile({ ...profile, avatar_url: avatarUrl })
+      alert('Photo de profil mise à jour !')
     } catch (error) {
-      console.log('Erreur:', error.message);
+      alert('Erreur lors de l’envoi : ' + error.message)
     } finally {
-      setLoading(false);
+      setUploading(false)
     }
-  }
-
-  async function updateProfile({ username, bio, avatarUrl }) {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const updates = {
-        id: user.id,
-        username,
-        bio,
-        avatar_url: avatarUrl,
-        updated_at: new Date().toISOString(),
-      };
-
-      let { error } = await supabase.from('profiles').upsert(updates);
-      if (error) throw error;
-      alert('Profil mis à jour !');
-    } catch (error) {
-      alert('Erreur lors de la mise à jour');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push('/');
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 max-w-md mx-auto">
-      {/* En-tête */}
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => router.push('/')} className="p-2">
-          <ArrowLeft className="w-6 h-6" />
+    <div className="min-h-screen bg-black text-[#EFF3F4] pb-20 max-w-md mx-auto border-x border-[#2F3336]">
+      {/* En-tête avec bouton retour */}
+      <header className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-[#2F3336] z-10 flex items-center gap-6 px-4 h-14">
+        <button onClick={() => router.push('/')} className="hover:bg-white/10 p-2 rounded-full">
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-bold">Profil</h1>
-        <button onClick={handleSignOut} className="p-2 text-red-500">
-          <LogOut className="w-6 h-6" />
-        </button>
-      </div>
+        <div>
+          <h1 className="font-bold text-base leading-tight">
+            {profile?.full_name || 'Profil'}
+          </h1>
+          <p className="text-xs text-[#71767B]">@{profile?.username || 'anonyme'}</p>
+        </div>
+      </header>
 
-      {/* Photo de profil */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="relative w-24 h-24 mb-4">
-          <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border-2 border-zinc-700">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-12 h-12 text-zinc-400" />
-            )}
+      {loading ? (
+        <div className="p-8 text-center text-[#71767B] text-sm">Chargement du profil...</div>
+      ) : (
+        <div>
+          {/* Bannière du profil */}
+          <div className="h-32 bg-[#202327]"></div>
+
+          {/* Avatar et bouton Modifier */}
+          <div className="px-4 relative flex justify-between items-end -mt-12 mb-4">
+            <div className="relative group w-24 h-24 rounded-full border-4 border-black bg-[#16181C] overflow-hidden flex items-center justify-center">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl font-bold">{profile?.username?.[0]?.toUpperCase() || 'U'}</span>
+              )}
+
+              {/* Bouton de changement de photo sur l'avatar */}
+              <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition">
+                <Camera className="w-6 h-6 text-white" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={uploadAvatar} 
+                  disabled={uploading} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Infos de l'utilisateur */}
+          <div className="px-4">
+            <h2 className="font-bold text-xl">{profile?.full_name || 'Utilisateur'}</h2>
+            <p className="text-[#71767B] text-sm">@{profile?.username || 'anonyme'}</p>
+            <p className="mt-3 text-sm">{profile?.bio || 'Pas encore de bio.'}</p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Formulaire */}
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Nom d'utilisateur</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
-            placeholder="@pseudo"
-          />
+      {/* Navigation du bas */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-[#2F3336] max-w-md mx-auto">
+        <div className="flex justify-around items-center h-16 text-[#71767B]">
+          <button onClick={() => router.push('/')} className="hover:text-white"><Home className="w-6 h-6" /></button>
+          <button className="hover:text-white"><Search className="w-6 h-6" /></button>
+          <button className="hover:text-white"><Bell className="w-6 h-6" /></button>
+          <button className="hover:text-white"><Mail className="w-6 h-6" /></button>
+          <button className="text-white"><User className="w-6 h-6" /></button>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Lien de la photo (URL)</label>
-          <input
-            type="text"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
-            placeholder="https://..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-zinc-400 mb-1">Bio</label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 h-24"
-            placeholder="Parle-nous de toi..."
-          />
-        </div>
-
-        <button
-          onClick={() => updateProfile({ username, bio, avatarUrl })}
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition mt-4"
-        >
-          {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
-        </button>
-      </div>
+      </nav>
     </div>
-  );
+  )
 }
