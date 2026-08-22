@@ -1,43 +1,55 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useRouter } from 'next/router'
-import { ArrowLeft, Camera, Calendar, User, Home, Search, Bell, Mail } from 'lucide-react'
+import { ArrowLeft, Camera, User, Home, Search, Bell, Mail, Film, Music, Heart } from 'lucide-react'
 
 export default function Profile() {
   const router = useRouter()
   const [profile, setProfile] = useState(null)
+  const [userPosts, setUserPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  
+  const [activeTab, setActiveTab] = useState('posts') // 'posts' | 'videos' | 'musique' | 'likes'
+
   const [fullName, setFullName] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
 
   useEffect(() => {
-    getProfile()
+    getProfileAndPosts()
   }, [])
 
-  const getProfile = async () => {
+  const getProfileAndPosts = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/auth')
       return
     }
 
-    const { data } = await supabase
+    // Récupérer le profil
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single()
 
-    if (data) {
-      setProfile(data)
-      setFullName(data.full_name || '')
-      setBio(data.bio || '')
-      setAvatarUrl(data.avatar_url || '')
-      setBannerUrl(data.banner_url || '')
+    if (profileData) {
+      setProfile(profileData)
+      setFullName(profileData.full_name || '')
+      setBio(profileData.bio || '')
+      setAvatarUrl(profileData.avatar_url || '')
+      setBannerUrl(profileData.banner_url || '')
     }
+
+    // Récupérer les posts de l'utilisateur
+    const { data: postsData } = await supabase
+      .from('posts')
+      .select(`*, profiles:user_id (username, full_name, avatar_url)`)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    setUserPosts(postsData || [])
     setLoading(false)
   }
 
@@ -71,9 +83,16 @@ export default function Profile() {
 
     if (!error) {
       setEditing(false)
-      getProfile()
+      getProfileAndPosts()
     }
   }
+
+  // Filtrer les posts selon l'onglet actif
+  const filteredPosts = userPosts.filter(post => {
+    if (activeTab === 'videos') return post.video_url
+    if (activeTab === 'musique') return post.audio_url
+    return true // 'posts' affiche tout
+  })
 
   if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Chargement...</div>
 
@@ -119,7 +138,7 @@ export default function Profile() {
       </div>
 
       {/* Infos profil */}
-      <div className="px-4 space-y-3">
+      <div className="px-4 space-y-3 mb-4">
         {editing ? (
           <div className="space-y-3">
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom" className="w-full bg-[#16181C] p-2 rounded-lg border border-[#2F3336] text-white" />
@@ -140,6 +159,30 @@ export default function Profile() {
         )}
       </div>
 
+      {/* Onglets de profil */}
+      <div className="flex border-b border-[#2F3336] text-sm font-bold text-[#71767B]">
+        <button onClick={() => setActiveTab('posts')} className={`flex-1 py-3 text-center transition ${activeTab === 'posts' ? 'text-white border-b-2 border-[#1D9BF0]' : 'hover:bg-white/5'}`}>Posts</button>
+        <button onClick={() => setActiveTab('videos')} className={`flex-1 py-3 text-center transition ${activeTab === 'videos' ? 'text-white border-b-2 border-[#1D9BF0]' : 'hover:bg-white/5'}`}>Vidéos</button>
+        <button onClick={() => setActiveTab('musique')} className={`flex-1 py-3 text-center transition ${activeTab === 'musique' ? 'text-white border-b-2 border-[#1D9BF0]' : 'hover:bg-white/5'}`}>Musique</button>
+        <button onClick={() => setActiveTab('likes')} className={`flex-1 py-3 text-center transition ${activeTab === 'likes' ? 'text-white border-b-2 border-[#1D9BF0]' : 'hover:bg-white/5'}`}>J'aime</button>
+      </div>
+
+      {/* Liste des posts filtrés */}
+      <div className="divide-y divide-[#2F3336]">
+        {filteredPosts.length === 0 ? (
+          <p className="text-center text-[#71767B] py-10 text-sm">Aucun contenu dans cet onglet.</p>
+        ) : (
+          filteredPosts.map((post) => (
+            <div key={post.id} className="p-4 border-b border-[#2F3336]">
+              <p className="text-sm mb-2">{post.content}</p>
+              {post.image_url && <img src={post.image_url} className="rounded-xl max-h-60 w-full object-cover mb-2" />}
+              {post.video_url && <video src={post.video_url} controls className="rounded-xl max-h-60 w-full mb-2" />}
+              {post.audio_url && <audio src={post.audio_url} controls className="w-full h-8" />}
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-[#2F3336] max-w-md mx-auto">
         <div className="flex justify-around items-center h-16 text-[#71767B]">
@@ -147,10 +190,10 @@ export default function Profile() {
           <button className="hover:text-white"><Search className="w-6 h-6" /></button>
           <button className="hover:text-white"><Bell className="w-6 h-6" /></button>
           <button className="hover:text-white"><Mail className="w-6 h-6" /></button>
-          <button className="text-white"><User className="w-6 h-6" /></button>
+          <button onClick={() => router.push('/profile')} className="text-white"><User className="w-6 h-6" /></button>
         </div>
       </nav>
     </div>
   )
-    }
+            }
         
