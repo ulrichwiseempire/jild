@@ -245,81 +245,59 @@ export default function Feed() {
 
       {/* Rendu des Posts */}
 <div className="divide-y divide-[#2F3336]">
-{posts.map((post) => (
-  <article key={post.id} className="p-4 hover:bg-white/[0.02] flex gap-3">
-    <div 
-      onClick={() => router.push(`/user/${post.user_id}`)}
-      className="w-10 h-10 rounded-full bg-[#202327] overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer"
-    >
-      {post.profiles?.avatar_url ? (
-        <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
-      ) : (
-        <User className="w-5 h-5 text-[#71767B]" />
-      )}
-    </div>
-
-    <div className="flex-1 min-w-0">
+  {posts.map((post) => (
+    <article key={post.id} className="p-4 hover:bg-white/[0.02] flex gap-3">
       <div 
         onClick={() => router.push(`/user/${post.user_id}`)}
-        className="flex items-center gap-1.5 text-sm cursor-pointer hover:underline"
+        className="w-10 h-10 rounded-full bg-[#202327] overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer"
       >
-        <span className="font-bold text-white truncate">{post.profiles?.full_name || 'Utilisateur'}</span>
-        <span className="text-[#71767B] truncate">@{post.profiles?.username || 'anonyme'}</span>
+        {post.profiles?.avatar_url ? (
+          <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-5 h-5 text-[#71767B]" />
+        )}
       </div>
 
-      {post.content && <p className="mt-1 text-sm text-[#EFF3F4] whitespace-pre-line">{post.content}</p>}
-        
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="font-bold text-white truncate">{post.profiles?.full_name || 'Utilisateur'}</span>
-                <span className="text-[#71767B] truncate">@{post.profiles?.us
-
-              {post.content && <p className="mt-1 text-sm text-[#EFF3F4] whitespace-pre-line">{post.content}</p>}
-
-              {post.image_url && (
-                <div className="mt-3 rounded-2xl overflow-hidden border border-[#2F3336]">
-                  <img src={post.image_url} className="w-full max-h-96 object-cover" />
-                </div>
-              )}
-
-              {post.video_url && (
-                <div className="mt-3 rounded-2xl overflow-hidden border border-[#2F3336]">
-                  <video src={post.video_url} controls className="w-full max-h-96" />
-                </div>
-              )}
-
-              {post.audio_url && (
-                <div className="mt-3 p-3 bg-[#16181C] rounded-2xl border border-[#2F3336]">
-                  <p className="text-xs text-[#1D9BF0] font-bold mb-1 flex items-center gap-1">
-                    <Music className="w-3.5 h-3.5" /> Musique associée
-                  </p>
-                  <audio src={post.audio_url} controls className="w-full h-8" />
-                </div>
-              )}
-
-              <div className="flex justify-between text-[#71767B] mt-3 max-w-md text-xs">
-                <button className="flex items-center gap-1 hover:text-[#1D9BF0]"><MessageCircle className="w-4 h-4" /></button>
-                <button className="flex items-center gap-1 hover:text-green-500"><Repeat className="w-4 h-4" /></button>
-                <button className="flex items-center gap-1 hover:text-pink-500"><Heart className="w-4 h-4" /></button>
-                <button className="flex items-center gap-1 hover:text-[#1D9BF0]"><Share className="w-4 h-4" /></button>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      {/* Navbar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-[#2F3336] max-w-md mx-auto">
-        <div className="flex justify-around items-center h-16 text-[#71767B]">
-          <button className="text-white"><Home className="w-6 h-6" /></button>
-          <button className="hover:text-white"><Search className="w-6 h-6" /></button>
-          <button className="hover:text-white"><Bell className="w-6 h-6" /></button>
-          <button className="hover:text-white"><Mail className="w-6 h-6" /></button>
-          <button onClick={() => router.push('/profile')} className="hover:text-white"><User className="w-6 h-6" /></button>
+      <div className="flex-1 min-w-0">
+        <div 
+          onClick={() => router.push(`/user/${post.user_id}`)}
+          className="flex items-center gap-1.5 text-sm cursor-pointer hover:underline"
+        >
+          <span className="font-bold text-white truncate">{post.profiles?.full_name || 'Utilisateur'}</span>
+          <span className="text-[#71767B] truncate">@{post.profiles?.username || 'anonyme'}</span>
         </div>
-      </nav>
-    </div>
-  )
-    }
-        
+
+        {post.content && <p className="mt-1 text-sm text-[#EFF3F4] whitespace-pre-line">{post.content}</p>}
+
+        {post.image_url && (
+          <div className="mt-3 rounded-2xl overflow-hidden border border-[#2F3336]">
+            <img src={post.image_url} className="w-full max-h-96 object-cover" />
+          </div>
+        )}
+
+        {post.video_url && (
+          <div className="mt-3 rounded-2xl overflow-hidden border border-[#2F3336]">
+            <video src={post.video_url} controls className="w-full max-h-96" />
+          </div>
+        )}
+
+        {post.audio_url && (
+          <div className="mt-3 p-3 bg-[#16181C] rounded-2xl border border-[#2F3336]">
+            <p className="text-xs text-[#1D9BF0] font-bold mb-1 flex items-center gap-1">
+              <Music className="w-3.5 h-3.5" /> Musique associée
+            </p>
+            <audio src={post.audio_url} controls className="w-full h-8" />
+          </div>
+        )}
+
+        <div className="flex justify-between text-[#71767B] mt-3 max-w-md text-xs">
+          <button className="flex items-center gap-1 hover:text-[#1D9BF0]"><MessageCircle className="w-4 h-4" /></button>
+          <button className="flex items-center gap-1 hover:text-green-500"><Repeat className="w-4 h-4" /></button>
+          <button className="flex items-center gap-1 hover:text-pink-500"><Heart className="w-4 h-4" /></button>
+          <button className="flex items-center gap-1 hover:text-[#1D9BF0]"><Share className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </article>
+  ))}
+</div>
+          
