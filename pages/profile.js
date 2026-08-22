@@ -1,243 +1,149 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useRouter } from 'next/router'
-import { Home, Search, Bell, Mail, ArrowLeft, Camera, User, Edit3, MapPin, Link as LinkIcon, Calendar } from 'lucide-react'
+import { ArrowLeft, Camera, Calendar, User, Home, Search, Bell, Mail } from 'lucide-react'
 
 export default function Profile() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [activeTab, setActiveTab] = useState('posts')
-
-  // Champs d'édition
+  const [editing, setEditing] = useState(false)
+  
   const [fullName, setFullName] = useState('')
-  const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
-  const [location, setLocation] = useState('')
-  const [website, setWebsite] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [bannerUrl, setBannerUrl] = useState('')
 
   useEffect(() => {
     getProfile()
   }, [])
 
   const getProfile = async () => {
-    setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-
     if (!user) {
       router.push('/auth')
       return
     }
 
-    setUser(user)
-
-    let { data } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .maybeSingle()
+      .single()
 
-    if (!data) {
-      const defaultUsername = user.email ? user.email.split('@')[0] : 'utilisateur'
-      const defaultProfile = {
-        id: user.id,
-        full_name: user.user_metadata?.full_name || defaultUsername,
-        username: defaultUsername,
-        bio: '',
-        location: '',
-        website: '',
-        followers_count: 0,
-        following_count: 0
-      }
-      await supabase.from('profiles').insert([defaultProfile])
-      setProfile(defaultProfile)
-      setFullName(defaultProfile.full_name)
-      setUsername(defaultProfile.username)
-    } else {
+    if (data) {
       setProfile(data)
       setFullName(data.full_name || '')
-      setUsername(data.username || '')
       setBio(data.bio || '')
-      setLocation(data.location || '')
-      setWebsite(data.website || '')
+      setAvatarUrl(data.avatar_url || '')
+      setBannerUrl(data.banner_url || '')
     }
-
     setLoading(false)
   }
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault()
-    try {
-      setLoading(true)
-      const updates = {
-        id: user.id,
-        full_name: fullName,
-        username: username,
-        bio: bio,
-        location: location,
-        website: website,
-        updated_at: new Date(),
-      }
+  const handleUpload = async (e, bucket, setUrl) => {
+    const file = e.target.files[0]
+    if (!file) return
 
-      let { error } = await supabase.from('profiles').upsert(updates)
-      if (error) throw error
+    const { data: { user } } = await supabase.auth.getUser()
+    const fileExt = file.name.split('.').pop()
+    const filePath = `${user.id}/${Date.now()}.${fileExt}`
 
-      setProfile({ ...profile, ...updates })
-      setIsEditing(false)
-    } catch (error) {
-      alert('Erreur : ' + error.message)
-    } finally {
-      setLoading(false)
+    const { error } = await supabase.storage.from(bucket).upload(filePath, file)
+    if (error) {
+      alert('Erreur upload : ' + error.message)
+      return
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
+    setUrl(data.publicUrl)
+  }
+
+  const handleSave = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('profiles').update({
+      full_name: fullName,
+      bio: bio,
+      avatar_url: avatarUrl,
+      banner_url: bannerUrl,
+      updated_at: new Date()
+    }).eq('id', user.id)
+
+    if (!error) {
+      setEditing(false)
+      getProfile()
     }
   }
 
-  const uploadAvatar = async (event) => {
-    try {
-      setUploading(true)
-      if (!event.target.files || event.target.files.length === 0) return
-
-      const file = event.target.files[0]
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${user.id}-${Math.random()}.${fileExt}`
-
-      let { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath)
-
-      const avatarUrl = publicUrlData.publicUrl
-
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, avatar_url: avatarUrl, updated_at: new Date() })
-
-      setProfile({ ...profile, avatar_url: avatarUrl })
-    } catch (error) {
-      alert('Erreur envoi image : ' + error.message)
-    } finally {
-      setUploading(false)
-    }
-  }
+  if (loading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Chargement...</div>
 
   return (
     <div className="min-h-screen bg-black text-[#EFF3F4] pb-20 max-w-md mx-auto border-x border-[#2F3336]">
-      {/* En-tête */}
-      <header className="sticky top-0 bg-black/80 backdrop-blur-md border-b border-[#2F3336] z-10 flex items-center gap-6 px-4 h-14">
-        <button onClick={() => router.push('/')} className="hover:bg-white/10 p-2 rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      <header className="sticky top-0 bg-black/80 backdrop-blur-md z-10 flex items-center gap-6 px-4 h-14 border-b border-[#2F3336]">
+        <button onClick={() => router.push('/')}><ArrowLeft className="w-5 h-5 text-white" /></button>
         <div>
-          <h1 className="font-bold text-base leading-tight">{profile?.full_name || 'Profil'}</h1>
-          <p className="text-xs text-[#71767B]">@{profile?.username || 'utilisateur'}</p>
+          <h1 className="font-bold text-lg leading-tight">{profile?.full_name || 'Profil'}</h1>
+          <p className="text-xs text-[#71767B]">@{profile?.username}</p>
         </div>
       </header>
 
-      {loading ? (
-        <div className="p-8 text-center text-[#71767B] text-sm">Chargement...</div>
-      ) : (
-        <div>
-          {/* Bannière */}
-          <div className="h-32 bg-[#202327]"></div>
+      {/* Bannière */}
+      <div className="h-32 bg-[#202327] relative">
+        {bannerUrl && <img src={bannerUrl} className="w-full h-full object-cover" />}
+        {editing && (
+          <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer">
+            <Camera className="w-6 h-6 text-white" />
+            <input type="file" accept="image/*" onChange={(e) => handleUpload(e, 'posts', setBannerUrl)} className="hidden" />
+          </label>
+        )}
+      </div>
 
-          {/* Photo & Bouton Édition */}
-          <div className="px-4 relative flex justify-between items-end -mt-12 mb-3">
-            <div className="relative group w-24 h-24 rounded-full border-4 border-black bg-[#16181C] overflow-hidden flex items-center justify-center">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-10 h-10 text-[#71767B]" />
-              )}
-              <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition">
-                <Camera className="w-6 h-6 text-white" />
-                <input type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
-              </label>
-            </div>
-
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="border border-[#536471] hover:bg-white/10 font-bold px-4 py-1.5 rounded-full text-xs text-white transition"
-            >
-              {isEditing ? 'Annuler' : 'Éditer le profil'}
-            </button>
-          </div>
-
-          {/* Informations ou Formulaire */}
-          <div className="px-4">
-            {isEditing ? (
-              <form onSubmit={handleUpdateProfile} className="space-y-3 mt-4">
-                <div>
-                  <label className="text-xs text-[#71767B]">Nom</label>
-                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none" />
-                </div>
-                <div>
-                  <label className="text-xs text-[#71767B]">Nom d'utilisateur</label>
-                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none" />
-                </div>
-                <div>
-                  <label className="text-xs text-[#71767B]">Bio</label>
-                  <textarea rows="2" value={bio} onChange={(e) => setBio(e.target.value)} className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none resize-none" />
-                </div>
-                <div>
-                  <label className="text-xs text-[#71767B]">Localisation</label>
-                  <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-[#16181C] border border-[#2F3336] rounded-lg p-2 text-sm text-white outline-none" />
-                </div>
-                <button type="submit" className="w-full bg-[#1D9BF0] font-bold py-2 rounded-full text-xs text-white">
-                  Enregistrer
-                </button>
-              </form>
-            ) : (
-              <div>
-                <h2 className="font-bold text-xl leading-tight">{profile?.full_name}</h2>
-                <p className="text-[#71767B] text-sm">@{profile?.username}</p>
-
-                {profile?.bio && <p className="mt-3 text-sm whitespace-pre-line">{profile.bio}</p>}
-
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-[#71767B]">
-                  {profile?.location && (
-                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{profile.location}</span>
-                  )}
-                  {profile?.website && (
-                    <span className="flex items-center gap-1"><LinkIcon className="w-3.5 h-3.5" /><a href={profile.website} target="_blank" className="text-[#1D9BF0]">{profile.website}</a></span>
-                  )}
-                </div>
-
-                {/* Abonnements / Abonnés */}
-                <div className="flex gap-4 mt-3 text-xs">
-                  <span className="text-[#71767B]"><strong className="text-white">{profile?.following_count || 0}</strong> Abonnements</span>
-                  <span className="text-[#71767B]"><strong className="text-white">{profile?.followers_count || 0}</strong> Abonnés</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Onglets JILD */}
-          <div className="flex border-b border-[#2F3336] mt-4 text-sm font-bold text-[#71767B]">
-            {['posts', 'videos', 'musique', 'jaime'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-center capitalize relative ${activeTab === tab ? 'text-white' : 'hover:bg-white/5'}`}
-              >
-                {tab === 'jaime' ? "J'aime" : tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#1D9BF0] rounded-full" />}
-              </button>
-            ))}
-          </div>
+      {/* Avatar & Action */}
+      <div className="px-4 flex justify-between items-end -mt-12 mb-4 relative">
+        <div className="w-24 h-24 rounded-full border-4 border-black bg-[#202327] overflow-hidden relative">
+          {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-[#71767B] m-auto mt-4" />}
+          {editing && (
+            <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer">
+              <Camera className="w-5 h-5 text-white" />
+              <input type="file" accept="image/*" onChange={(e) => handleUpload(e, 'avatars', setAvatarUrl)} className="hidden" />
+            </label>
+          )}
         </div>
-      )}
 
-      {/* Barre de navigation */}
+        <button
+          onClick={() => editing ? handleSave() : setEditing(true)}
+          className="border border-[#71767B] font-bold text-sm px-4 py-1.5 rounded-full hover:bg-white/10"
+        >
+          {editing ? 'Enregistrer' : 'Éditer le profil'}
+        </button>
+      </div>
+
+      {/* Infos profil */}
+      <div className="px-4 space-y-3">
+        {editing ? (
+          <div className="space-y-3">
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom" className="w-full bg-[#16181C] p-2 rounded-lg border border-[#2F3336] text-white" />
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio" className="w-full bg-[#16181C] p-2 rounded-lg border border-[#2F3336] text-white resize-none" rows="2" />
+          </div>
+        ) : (
+          <>
+            <div>
+              <h2 className="font-bold text-xl">{profile?.full_name}</h2>
+              <p className="text-sm text-[#71767B]">@{profile?.username}</p>
+            </div>
+            {profile?.bio && <p className="text-sm">{profile.bio}</p>}
+            <div className="flex gap-4 text-xs text-[#71767B]">
+              <span><b className="text-white">0</b> Abonnements</span>
+              <span><b className="text-white">0</b> Abonnés</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-[#2F3336] max-w-md mx-auto">
         <div className="flex justify-around items-center h-16 text-[#71767B]">
-          <button onClick={() => router.push('/')} className="hover:text-white"><Home className="w-6 h-6" /></button>
+          <button onClick={() => router.push('/')}><Home className="w-6 h-6" /></button>
           <button className="hover:text-white"><Search className="w-6 h-6" /></button>
           <button className="hover:text-white"><Bell className="w-6 h-6" /></button>
           <button className="hover:text-white"><Mail className="w-6 h-6" /></button>
@@ -246,5 +152,5 @@ export default function Profile() {
       </nav>
     </div>
   )
-        }
-                
+    }
+        
