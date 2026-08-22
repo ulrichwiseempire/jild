@@ -244,22 +244,36 @@ export default function Feed() {
       </div>
 
       {/* Rendu des Posts */}
-      <div className="divide-y divide-[#2F3336]">
-        {posts.map((post) => (
-          <article key={post.id} className="p-4 hover:bg-white/[0.02] flex gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#202327] overflow-hidden flex-shrink-0 flex items-center justify-center">
-              {post.profiles?.avatar_url ? (
-                <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-5 h-5 text-[#71767B]" />
-              )}
-            </div>
+<div className="divide-y divide-[#2F3336]">
+{posts.map((post) => (
+  <article key={post.id} className="p-4 hover:bg-white/[0.02] flex gap-3">
+    <div 
+      onClick={() => router.push(`/user/${post.user_id}`)}
+      className="w-10 h-10 rounded-full bg-[#202327] overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer"
+    >
+      {post.profiles?.avatar_url ? (
+        <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+      ) : (
+        <User className="w-5 h-5 text-[#71767B]" />
+      )}
+    </div>
+
+    <div className="flex-1 min-w-0">
+      <div 
+        onClick={() => router.push(`/user/${post.user_id}`)}
+        className="flex items-center gap-1.5 text-sm cursor-pointer hover:underline"
+      >
+        <span className="font-bold text-white truncate">{post.profiles?.full_name || 'Utilisateur'}</span>
+        <span className="text-[#71767B] truncate">@{post.profiles?.username || 'anonyme'}</span>
+      </div>
+
+      {post.content && <p className="mt-1 text-sm text-[#EFF3F4] whitespace-pre-line">{post.content}</p>}
+        
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="font-bold text-white truncate">{post.profiles?.full_name || 'Utilisateur'}</span>
-                <span className="text-[#71767B] truncate">@{post.profiles?.username || 'anonyme'}</span>
-              </div>
+                <span className="text-[#71767B] truncate">@{post.profiles?.us
 
               {post.content && <p className="mt-1 text-sm text-[#EFF3F4] whitespace-pre-line">{post.content}</p>}
 
