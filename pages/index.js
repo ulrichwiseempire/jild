@@ -45,7 +45,7 @@ export default function Feed() {
 
     if (!error) setPosts(data || [])
   }
-
+  
   const fetchStories = async () => {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data } = await supabase
@@ -173,11 +173,12 @@ export default function Feed() {
         </label>
 
         {stories.map((story) => (
+                  {stories.map((story) => (
           <div key={story.id} className="flex flex-col items-center flex-shrink-0">
             <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-yellow-400 to-[#1D9BF0]">
-              <div className="w-full h-full rounded-full bg-black overflow-hidden">
+              <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
                 {story.media_type === 'video' ? (
-                  <video src={story.media_url} className="w-full h-full object-cover" />
+                  <video src={story.media_url} className="w-full h-full object-cover" muted playsInline />
                 ) : (
                   <img src={story.media_url} className="w-full h-full object-cover" />
                 )}
@@ -188,6 +189,7 @@ export default function Feed() {
             </span>
           </div>
         ))}
+          
       </div>
 
       {/* Création de post */}
