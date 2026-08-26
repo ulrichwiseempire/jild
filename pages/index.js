@@ -173,7 +173,6 @@ export default function Feed() {
         </label>
 
         {stories.map((story) => (
-                  {stories.map((story) => (
           <div key={story.id} className="flex flex-col items-center flex-shrink-0">
             <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-yellow-400 to-[#1D9BF0]">
               <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
@@ -189,7 +188,6 @@ export default function Feed() {
             </span>
           </div>
         ))}
-          
       </div>
 
       {/* Création de post */}
@@ -328,5 +326,5 @@ export default function Feed() {
       </nav>
     </div>
   )
-  }
+      }
         
