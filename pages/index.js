@@ -39,7 +39,7 @@ export default function Feed() {
       .from('posts')
       .select(`
         *,
-        profiles:user_id (username, full_name, avatar_url)
+        profiles (id, username, full_name, avatar_url)
       `)
       .order('created_at', { ascending: false })
 
@@ -50,7 +50,7 @@ export default function Feed() {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data } = await supabase
       .from('stories')
-      .select(`*, profiles:user_id (username, full_name, avatar_url)`)
+      .select(`*, profiles (id, username, full_name, avatar_url)`)
       .gte('created_at', yesterday)
       .order('created_at', { ascending: false })
     setStories(data || [])
@@ -73,13 +73,12 @@ export default function Feed() {
     }
   }
 
-    const handleCreatePost = async (e) => {
+  const handleCreatePost = async (e) => {
     e.preventDefault()
     if (!content.trim() && !visualFile && !audioFile) return
 
     setLoading(true)
     try {
-      // Récupère l'utilisateur actuellement connecté à l'instant T
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Utilisateur non connecté")
 
@@ -87,7 +86,6 @@ export default function Feed() {
       let videoUrl = null
       let audioUrl = null
 
-      // Upload Média Principal (Image/Vidéo)
       if (visualFile) {
         const fileExt = visualFile.name.split('.').pop()
         const filePath = `${user.id}/${Date.now()}.${fileExt}`
@@ -99,7 +97,6 @@ export default function Feed() {
         if (visualType === 'video') videoUrl = publicData.publicUrl
       }
 
-      // Upload Audio
       if (audioFile) {
         const fileExt = audioFile.name.split('.').pop()
         const filePath = `${user.id}/audio_${Date.now()}.${fileExt}`
@@ -110,7 +107,6 @@ export default function Feed() {
         audioUrl = publicAudioData.publicUrl
       }
 
-      // Insertion dans la base de données avec le bon ID utilisateur
       const { error: insertError } = await supabase.from('posts').insert({
         user_id: user.id,
         content: content,
@@ -132,8 +128,29 @@ export default function Feed() {
     } finally {
       setLoading(false)
     }
-    }
-  
+  }
+
+  const handleAddStory = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Utilisateur non connecté")
+
+      const type = file.type.startsWith('video') ? 'video' : 'image'
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+
+      const { error } = await supabase.storage.from('stories').upload(filePath, file)
+      if (error) throw error
+
+      const { data } = supabase.storage.from('stories').getPublicUrl(filePath)
+      await supabase.from('stories').insert({
+        user_id: user.id,
+        media_url: data.publicUrl,
+        media_type: type
+      })
 
       fetchStories()
     } catch (err) {
@@ -312,5 +329,5 @@ export default function Feed() {
       </nav>
     </div>
   )
-      }
-        
+        }
+          
