@@ -73,12 +73,16 @@ export default function Feed() {
     }
   }
 
-  const handleCreatePost = async (e) => {
+    const handleCreatePost = async (e) => {
     e.preventDefault()
     if (!content.trim() && !visualFile && !audioFile) return
 
     setLoading(true)
     try {
+      // Récupère l'utilisateur actuellement connecté à l'instant T
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Utilisateur non connecté")
+
       let imageUrl = null
       let videoUrl = null
       let audioUrl = null
@@ -86,7 +90,7 @@ export default function Feed() {
       // Upload Média Principal (Image/Vidéo)
       if (visualFile) {
         const fileExt = visualFile.name.split('.').pop()
-        const filePath = `${currentUser.id}/${Date.now()}.${fileExt}`
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`
         const { error: uploadError } = await supabase.storage.from('posts').upload(filePath, visualFile)
         if (uploadError) throw uploadError
 
@@ -98,7 +102,7 @@ export default function Feed() {
       // Upload Audio
       if (audioFile) {
         const fileExt = audioFile.name.split('.').pop()
-        const filePath = `${currentUser.id}/audio_${Date.now()}.${fileExt}`
+        const filePath = `${user.id}/audio_${Date.now()}.${fileExt}`
         const { error: uploadAudioError } = await supabase.storage.from('audio').upload(filePath, audioFile)
         if (uploadAudioError) throw uploadAudioError
 
@@ -106,9 +110,9 @@ export default function Feed() {
         audioUrl = publicAudioData.publicUrl
       }
 
-      // Insertion BDD
+      // Insertion dans la base de données avec le bon ID utilisateur
       const { error: insertError } = await supabase.from('posts').insert({
-        user_id: currentUser.id,
+        user_id: user.id,
         content: content,
         image_url: imageUrl,
         video_url: videoUrl,
@@ -128,26 +132,8 @@ export default function Feed() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleAddStory = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    const type = file.type.startsWith('video') ? 'video' : 'image'
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${currentUser.id}/${Date.now()}.${fileExt}`
-
-    try {
-      const { error } = await supabase.storage.from('stories').upload(filePath, file)
-      if (error) throw error
-
-      const { data } = supabase.storage.from('stories').getPublicUrl(filePath)
-      await supabase.from('stories').insert({
-        user_id: currentUser.id,
-        media_url: data.publicUrl,
-        media_type: type
-      })
+    }
+  
 
       fetchStories()
     } catch (err) {
