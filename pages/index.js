@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../supabaseClient'
 import { useRouter } from 'next/router'
 import { Heart, MessageCircle, Repeat, Bookmark, Share, Image, Film, Music, Trash2 } from 'lucide-react'
 
