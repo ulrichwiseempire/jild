@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>JILD</title>
+<meta name="theme-color" content="#000000">
+<meta name="description" content="JILD — le réseau social où ta musique parle pour toi.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<style>
+  :root{
+    --bg:#000000;
+    --surface:#16181c;
+    --surface-hover:#1c1f23;
+    --border:#2f3336;
+    --text:#e7e9ea;
+    --text-dim:#71767b;
+    --accent:#1d9bf0;
+    --accent-dim:#1a8cd8;
+    --heart:#f91880;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+  img{display:block; max-width:100%;}
+  input,textarea{font-family:inherit; color:inherit;}
+
+  #app{
+    max-width:520px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    border-left:1px solid var(--border);
+    border-right:1px solid var(--border);
+  }
+
+  /* ---------- status bar (fake) ---------- */
+  .statusbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px 6px;
+    font-size:14px; font-weight:600;
+    color:var(--text);
+    flex-shrink:0;
+  }
+  .statusbar .icons{display:flex; gap:5px; align-items:center; font-size:13px;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px 14px;
+    flex-shrink:0;
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .back{font-size:22px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%;}
+  .topbar .back:active{background:var(--surface);}
+  .brand{font-size:22px; font-weight:800; letter-spacing:0.02em; color:var(--accent);}
+
+  /* ---------- main scroll area ---------- */
+  .screen{
+    flex:1;
+    overflow-y:auto;
+    padding-bottom:90px;
+    display:none;
+  }
+  .screen.active{display:block;}
+
+  /* ================= FEED / POSTS ================= */
+  .post{
+    display:flex; gap:12px;
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .avatar{
+    width:44px; height:44px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg,#2f3336,#16181c);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; font-weight:700; color:var(--text-dim);
+    cursor:pointer;
+  }
+  .avatar img{width:100%; height:100%; object-fit:cover;}
+  .post-body{flex:1; min-width:0;}
+  .post-head{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;}
+  .post-head .name{font-weight:700; font-size:15px; cursor:pointer;}
+  .post-head .handle, .post-head .time{color:var(--text-dim); font-size:14px;}
+  .post-text{margin:2px 0 10px; font-size:15px; line-height:1.4; white-space:pre-wrap; word-break:break-word;}
+  .post-media{
+    border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:10px;
+  }
+  .post-media img{width:100%; display:block; max-height:520px; object-fit:cover;}
+  .post-actions{display:flex; align-items:center; gap:28px; color:var(--text-dim); font-size:14px;}
+  .post-actions button{display:flex; align-items:center; gap:6px; padding:6px 0;}
+  .post-actions .liked{color:var(--heart);}
+  .badge-verified{color:var(--accent);}
+
+  .track-card{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:9px 12px;
+    margin-bottom:10px;
+  }
+  .track-card .play{
+    width:30px; height:30px; border-radius:50%; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; cursor:pointer;
+  }
+  .track-card .meta{flex:1; min-width:0;}
+  .track-card .meta .t1{font-size:13px; font-weight:600; color:var(--text);}
+  .track-card .meta .t2{font-size:12px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  /* ================= PROFIL ================= */
+  .profile-head{padding:12px 16px 0;}
+  .profile-top-row{display:flex; justify-content:space-between; align-items:flex-start;}
+  .profile-avatar{
+    width:76px; height:76px; border-radius:50%;
+    background:linear-gradient(135deg,#2f3336,#16181c);
+    border:3px solid var(--bg);
+    overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; font-weight:700; color:var(--text-dim);
+  }
+  .profile-avatar img{width:100%; height:100%; object-fit:cover;}
+  .btn{padding:8px 18px; border-radius:20px; font-weight:700; font-size:14px;}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--text); display:flex; align-items:center; gap:6px;}
+  .btn-follow{background:var(--accent); color:#fff;}
+  .btn-following{background:transparent; border:1px solid var(--border); color:var(--text);}
+  .profile-actions{display:flex; gap:8px;}
+  .profile-name{font-size:19px; font-weight:800; margin-top:10px; display:flex; align-items:center; gap:6px;}
+  .profile-handle{color:var(--text-dim); font-size:14px; margin-bottom:8px;}
+  .profile-bio{font-size:14px; line-height:1.45; color:var(--text); margin-bottom:10px;}
+  .profile-stats{display:flex; gap:18px; font-size:14px; color:var(--text-dim); margin-bottom:14px;}
+  .profile-stats b{color:var(--text); font-weight:700;}
+
+  .tabs{display:flex; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:5;}
+  .tab{flex:1; text-align:center; padding:13px 0; font-size:14px; font-weight:600; color:var(--text-dim); position:relative;}
+  .tab.active{color:var(--text);}
+  .tab.active::after{content:""; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:56px; height:3px; background:var(--accent); border-radius:3px;}
+
+  .section-title{font-size:17px; font-weight:800; padding:16px 16px 10px;}
+
+  .list-track{display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid var(--border);}
+  .list-track .thumb{width:46px; height:46px; border-radius:8px; background:var(--surface); overflow:hidden; flex-shrink:0;}
+  .list-track .meta{flex:1; min-width:0;}
+  .list-track .meta .t1{font-size:14px; font-weight:600;}
+  .list-track .meta .t2{font-size:12px; color:var(--text-dim);}
+
+  /* ================= MESSAGES ================= */
+  .conv{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border);}
+  .conv .avatar{width:50px; height:50px;}
+  .conv .meta{flex:1; min-width:0;}
+  .conv .row1{display:flex; justify-content:space-between; align-items:baseline;}
+  .conv .row1 .name{font-weight:700; font-size:15px; display:flex; align-items:center; gap:5px;}
+  .conv .row1 .time{font-size:12px; color:var(--text-dim);}
+  .conv .preview{font-size:13px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  .chat-screen{display:flex; flex-direction:column; height:100%;}
+  .chat-messages{flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:8px;}
+  .bubble{max-width:75%; padding:9px 13px; border-radius:18px; font-size:14px; line-height:1.35;}
+  .bubble.them{background:var(--surface); border:1px solid var(--border); align-self:flex-start; border-bottom-left-radius:4px;}
+  .bubble.me{background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:4px;}
+  .chat-input-row{display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid var(--border);}
+  .chat-input-row input{flex:1; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:10px 14px; font-size:14px;}
+  .chat-input-row input::placeholder{color:var(--text-dim);}
+  .send-btn{width:36px; height:36px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+
+  /* ---------- bottom nav ---------- */
+  .bottomnav{
+    position:absolute; bottom:0; left:0; right:0;
+    display:flex; justify-content:space-around; align-items:center;
+    padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--border);
+    background:rgba(0,0,0,0.92);
+    backdrop-filter:blur(10px);
+    z-index:20;
+  }
+  .navbtn{width:44px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px; color:var(--text);}
+  .navbtn.active{color:var(--accent);}
+  .navbtn:active{background:var(--surface);}
+
+  .empty{padding:60px 24px; text-align:center; color:var(--text-dim);}
+  .empty .big{font-size:19px; font-weight:800; color:var(--text); margin-bottom:6px;}
+
+  .install-toast{
+    position:absolute; left:12px; right:12px; bottom:90px;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px; z-index:30;
+    animation:slideup .3s ease;
+  }
+  @keyframes slideup{from{transform:translateY(20px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .install-toast .txt{flex:1; font-size:13px; line-height:1.3;}
+  .install-toast .txt b{display:block; font-size:14px; margin-bottom:2px;}
+  .install-toast button.install{background:var(--accent); color:#fff; padding:7px 14px; border-radius:16px; font-size:13px; font-weight:700; flex-shrink:0;}
+  .install-toast .close{color:var(--text-dim); padding:4px;}
+
+  .icon-svg{width:20px; height:20px; display:inline-block; vertical-align:middle; flex-shrink:0;}
+  .icon-svg svg{width:100%; height:100%; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block;}
+  .navbtn .icon-svg{width:24px; height:24px;}
+  .topbar .icon-svg{width:22px; height:22px;}
+  .statusbar .icon-svg{width:16px; height:16px;}
+  .post-actions .icon-svg{width:18px; height:18px;}
+  .track-card .play .icon-svg{width:14px; height:14px;}
+  .send-btn .icon-svg{width:18px; height:18px;}
+
+  /* ================= AUTH ================= */
+  #auth-overlay{
+    position:fixed; inset:0; background:var(--bg); z-index:100;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .auth-box{width:100%; max-width:360px;}
+  .auth-box .brand{display:block; text-align:center; font-size:30px; margin-bottom:28px;}
+  .auth-box h2{font-size:20px; font-weight:800; margin-bottom:18px;}
+  .auth-field{margin-bottom:12px;}
+  .auth-field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px;}
+  .auth-field input{
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; font-size:15px;
+  }
+  .auth-field input:focus{outline:none; border-color:var(--accent);}
+  .auth-submit{width:100%; background:var(--accent); color:#fff; padding:13px; border-radius:24px; font-weight:700; font-size:15px; margin-top:6px;}
+  .auth-error{color:var(--heart); font-size:13px; margin-top:10px; min-height:16px;}
+  .auth-switch{text-align:center; margin-top:22px; font-size:14px; color:var(--text-dim);}
+  .auth-switch a{color:var(--accent); font-weight:600; cursor:pointer;}
+
+  /* ================= COMPOSE ================= */
+  .compose-header{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border);}
+  .compose-body{padding:16px;}
+  .compose-body textarea{
+    width:100%; min-height:140px; background:transparent; border:none; color:var(--text);
+    font-size:17px; line-height:1.4; resize:none;
+  }
+  .compose-body textarea:focus{outline:none;}
+  #compose-preview{display:flex; flex-direction:column; gap:8px; margin:8px 0 4px;}
+  .compose-chip{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:9px 12px; font-size:13px;
+  }
+  .compose-chip button{color:var(--text-dim); font-size:16px;}
+  .compose-toolbar{display:flex; gap:6px; padding:10px 16px; border-top:1px solid var(--border);}
+  .compose-toolbar button{width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--accent);}
+  .compose-toolbar button:active{background:var(--surface);}
+
+  /* ================= MUSIC MODAL ================= */
+  #music-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:90;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .music-sheet{
+    width:100%; max-width:520px; max-height:78vh; background:var(--bg);
+    border-radius:18px 18px 0 0; display:flex; flex-direction:column; overflow:hidden;
+    border:1px solid var(--border); border-bottom:none;
+  }
+  .music-sheet-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border);}
+  .music-sheet-head h3{font-size:16px; font-weight:800;}
+  .music-search-box{padding:10px 16px;}
+  .music-search-box input{
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:10px 14px; font-size:14px;
+  }
+  .music-panel{overflow-y:auto; flex:1;}
+  .upload-sound-btn{
+    margin:16px; padding:13px; text-align:center; border:1px dashed var(--border); border-radius:12px;
+    color:var(--accent); font-weight:600; font-size:14px; display:block;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH OVERLAY ============ -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <span class="brand">JILD</span>
+    <h2 id="auth-title">Créer un compte</h2>
+    <div id="auth-form" data-mode="signup">
+      <div class="auth-field" id="auth-username-row">
+        <label>Nom d'utilisateur</label>
+        <input type="text" id="auth-username" placeholder="ex: ulrich" autocomplete="off">
+      </div>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="toi@exemple.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Mot de passe</label>
+        <input type="password" id="auth-password" placeholder="6 caractères minimum" autocomplete="current-password">
+      </div>
+      <button class="auth-submit" id="auth-submit">S'inscrire</button>
+      <div class="auth-error" id="auth-error"></div>
+    </div>
+    <div class="auth-switch">
+      <span id="auth-switch-text">Déjà un compte ?</span>
+      <a id="auth-switch-link" onclick="toggleAuthMode()">Se connecter</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ROOT ============ -->
+<div id="app-root" style="display:none;">
+<div id="app">
+
+  <div class="statusbar">
+    <span id="clock">12:08</span>
+    <span class="icons"><span class="icon-svg" data-icon="signal"></span><span class="icon-svg" data-icon="wifi"></span><span class="icon-svg" data-icon="battery"></span></span>
+  </div>
+
+  <div class="topbar" id="topbar"></div>
+
+  <!-- ============ ACCUEIL / FEED ============ -->
+  <div class="screen active" id="screen-feed"></div>
+
+  <!-- ============ COMPOSE ============ -->
+  <div class="screen" id="screen-compose">
+    <div class="compose-header">
+      <button onclick="showScreen('feed')" style="font-size:15px; color:var(--text);">Annuler</button>
+      <button class="btn btn-follow" id="compose-submit" onclick="publishPost()">Publier</button>
+    </div>
+    <div class="compose-body">
+      <textarea id="compose-text" placeholder="Quoi de neuf ?"></textarea>
+      <div id="compose-preview"></div>
+    </div>
+    <div class="compose-toolbar">
+      <button onclick="document.getElementById('compose-image-input').click()"><span class="icon-svg" data-icon="image"></span></button>
+      <button onclick="document.getElementById('compose-video-input').click()"><span class="icon-svg" data-icon="video"></span></button>
+      <button onclick="openMusicPicker()"><span class="icon-svg" data-icon="music"></span></button>
+    </div>
+    <input type="file" id="compose-image-input" accept="image/*" style="display:none;" onchange="onPickImage(this)">
+    <input type="file" id="compose-video-input" accept="video/*" style="display:none;" onchange="onPickVideo(this)">
+  </div>
+
+  <!-- ============ PROFIL ============ -->
+  <div class="screen" id="screen-profile">
+    <div id="profile-content"></div>
+  </div>
+  <input type="file" id="avatar-upload-input" accept="image/*" style="display:none;" onchange="onUploadAvatar(this)">
+
+  <!-- ============ MESSAGES (liste — démo, pas encore branchée) ============ -->
+  <div class="screen" id="screen-messages">
+    <div class="conv" onclick="openChat('ulrich','Ulrich')">
+      <div class="avatar">U</div>
+      <div class="meta">
+        <div class="row1"><span class="name">Ulrich</span><span class="time">2m</span></div>
+        <div class="preview">Ok, je vois ça. À bientôt !</div>
+      </div>
+    </div>
+    <div class="conv" onclick="openChat('narol','Narol Gnooi')">
+      <div class="avatar">N</div>
+      <div class="meta">
+        <div class="row1"><span class="name">Narol Gnooi</span><span class="time">2m</span></div>
+        <div class="preview">Je te message ce soir pour les détails</div>
+      </div>
+    </div>
+    <div class="empty" style="padding:30px 24px 10px; font-size:13px;">La messagerie en temps réel arrivera dans une prochaine étape.</div>
+  </div>
+
+  <!-- ============ CHAT ============ -->
+  <div class="screen" id="screen-chat">
+    <div class="chat-screen">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Écrire un message...">
+        <button class="send-btn" onclick="sendMsg()"><span class="icon-svg" data-icon="send"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SEARCH ============ -->
+  <div class="screen" id="screen-search">
+    <div style="padding:12px 16px;">
+      <input type="text" id="search-input" placeholder="Rechercher un compte..." oninput="searchUsers(this.value.trim())"
+        style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:11px 16px; font-size:14px;">
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <div class="bottomnav">
+    <button class="navbtn active" data-screen="feed"><span class="icon-svg" data-icon="home"></span></button>
+    <button class="navbtn" data-screen="search"><span class="icon-svg" data-icon="search"></span></button>
+    <button class="navbtn" onclick="openCompose()"><span class="icon-svg" data-icon="plus-circle"></span></button>
+    <button class="navbtn" data-screen="messages"><span class="icon-svg" data-icon="mail"></span></button>
+    <button class="navbtn" onclick="openMyProfile()"><span class="icon-svg" data-icon="user"></span></button>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ MUSIC PICKER MODAL ============ -->
+<div id="music-modal">
+  <div class="music-sheet">
+    <div class="music-sheet-head">
+      <h3>Ajouter une musique</h3>
+      <button onclick="closeMusicPicker()" class="icon-svg" data-icon="x" style="width:20px;height:20px;"></button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-mtab2="search" onclick="switchMusicTab('search')">Rechercher</button>
+      <button class="tab" data-mtab2="mine" onclick="switchMusicTab('mine')">Mes sons</button>
+      <button class="tab" data-mtab2="upload" onclick="switchMusicTab('upload')">Importer</button>
+    </div>
+    <div id="music-panel-search" class="music-panel">
+      <div class="music-search-box"><input type="text" id="music-search-input" placeholder="Chercher un titre..."></div>
+      <div id="music-search-results"></div>
+    </div>
+    <div id="music-panel-mine" class="music-panel" style="display:none;">
+      <div id="music-mine-results"></div>
+    </div>
+    <div id="music-panel-upload" class="music-panel" style="display:none;">
+      <label class="upload-sound-btn">
+        Choisir un fichier audio sur mon téléphone
+        <input type="file" accept="audio/*" style="display:none;" onchange="onUploadOwnSound(this)">
+      </label>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+/* ---------- icon set (Lucide-style outline icons, no emoji) ---------- */
+const ICONS = {
+  home: '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  bell: '<path d="M17 8a5 5 0 0 0-10 0c0 6-2.5 7.5-2.5 7.5h15S17 14 17 8Z"/><path d="M13.5 19a1.7 1.7 0 0 1-3 0"/>',
+  'arrow-left': '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12,19 5,12 12,5"/>',
+  'more-horizontal': '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  info: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="11.5"/><circle cx="12" cy="8" r="0.4" fill="currentColor" stroke="none"/>',
+  heart: '<path d="M12 20.5s-7.5-4.6-9.8-9A5.3 5.3 0 0 1 12 6.3 5.3 5.3 0 0 1 21.8 11.5c-2.3 4.4-9.8 9-9.8 9Z"/>',
+  'heart-filled': '<path d="M12 20.5s-7.5-4.6-9.8-9A5.3 5.3 0 0 1 12 6.3 5.3 5.3 0 0 1 21.8 11.5c-2.3 4.4-9.8 9-9.8 9Z" fill="currentColor"/>',
+  'message-circle': '<path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l2-5.8a8.3 8.3 0 0 1-.9-3.7A8.4 8.4 0 0 1 12.6 3a8.4 8.4 0 0 1 8.4 8.4Z"/>',
+  repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  bookmark: '<path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z"/>',
+  share: '<circle cx="18" cy="5" r="2.7"/><circle cx="6" cy="12" r="2.7"/><circle cx="18" cy="19" r="2.7"/><line x1="8.4" y1="10.6" x2="15.6" y2="6.4"/><line x1="8.4" y1="13.4" x2="15.6" y2="17.6"/>',
+  play: '<polygon points="6,3 20,12 6,21" fill="currentColor" stroke="none"/>',
+  pause: '<rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none"/>',
+  send: '<line x1="21" y1="3" x2="10.5" y2="13.5"/><polygon points="21,3 14.5,21 10.5,13.5 3,9.5"/>',
+  edit: '<path d="M12.5 5.5H5a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h11.5a2 2 0 0 0 2-2v-7.5"/><path d="M18.4 3.4a2 2 0 0 1 2.8 2.8L11 16.5l-4 1 1-4Z"/>',
+  signal: '<line x1="4" y1="18" x2="4" y2="14"/><line x1="9" y1="18" x2="9" y2="10"/><line x1="14" y1="18" x2="14" y2="6"/><line x1="19" y1="18" x2="19" y2="3"/>',
+  wifi: '<path d="M3 8.5a16 16 0 0 1 18 0"/><path d="M6.3 12.5a11 11 0 0 1 11.4 0"/><path d="M9.6 16.3a5.8 5.8 0 0 1 4.8 0"/><circle cx="12" cy="19.5" r="0.5" fill="currentColor" stroke="none"/>',
+  battery: '<rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="10.5" x2="22" y2="13.5"/><rect x="4" y="9" width="12" height="6" fill="currentColor" stroke="none"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  'plus-circle': '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.7"/><path d="m21 15-5-5-11 11"/>',
+  video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 9-6 3 6 3V9Z"/>',
+  'check-badge': '<path d="M12 2 14.5 4.2 17.7 3.6 18.7 6.7 21.7 8.1 20.5 11.2 21.7 14.3 18.7 15.7 17.7 18.8 14.5 18.2 12 20.4 9.5 18.2 6.3 18.8 5.3 15.7 2.3 14.3 3.5 11.2 2.3 8.1 5.3 6.7 6.3 3.6 9.5 4.2Z"/><path d="m8.5 12 2.3 2.3 4.7-4.7"/>'
+};
+function setIcon(el, name){ if(!el || !ICONS[name]) return; el.innerHTML = `<svg viewBox="0 0 24 24">${ICONS[name]}</svg>`; el.dataset.icon = name; }
+function renderIcons(scope){ (scope || document).querySelectorAll('[data-icon]').forEach(el => setIcon(el, el.dataset.icon)); }
+
+/* ---------- navigation ---------- */
+let currentScreen = 'feed';
+let previousScreen = 'feed';
+
+function renderTopbar(){
+  const bar = document.getElementById('topbar');
+  if(currentScreen === 'profile'){
+    bar.innerHTML = `<button class="back" onclick="goBack()"><span class="icon-svg" data-icon="arrow-left"></span></button><span style="font-weight:700;font-size:16px;">Profil</span><span style="width:34px;"></span>`;
+  } else if(currentScreen === 'chat'){
+    const name = (typeof activeChat !== 'undefined' && activeChat) ? chats[activeChat].name : '';
+    bar.innerHTML = `<button class="back" onclick="showScreen('messages')"><span class="icon-svg" data-icon="arrow-left"></span></button><span style="font-weight:700;font-size:16px;">${name}</span><span style="width:34px;"></span>`;
+  } else if(currentScreen === 'messages'){
+    bar.innerHTML = `<span style="font-weight:800;font-size:19px;">Messages</span><span></span>`;
+  } else if(currentScreen === 'search'){
+    bar.innerHTML = `<span style="font-weight:800;font-size:19px;">Rechercher</span><span></span>`;
+  } else if(currentScreen === 'compose'){
+    bar.innerHTML = '';
+  } else {
+    bar.innerHTML = `<span class="brand">JILD</span><span class="icon-svg" data-icon="bell"></span>`;
+  }
+  renderIcons(bar);
+}
+
+function showScreen(name){
+  previousScreen = currentScreen === 'chat' ? previousScreen : currentScreen;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  currentScreen = name;
+  document.querySelectorAll('.navbtn[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
+  renderTopbar();
+  document.getElementById('screen-' + name).scrollTop = 0;
+}
+function goBack(){ showScreen(previousScreen === 'profile' ? 'feed' : previousScreen); }
+
+document.querySelectorAll('.navbtn[data-screen]').forEach(btn=>{
+  btn.addEventListener('click', ()=> showScreen(btn.dataset.screen));
+});
+
+/* ---------- demo chat (messagerie temps réel à venir) ---------- */
+const chats = {
+  ulrich: {name:'Ulrich', msgs:[
+    {from:'them', text:'Salut ! Tu as écouté la nouvelle track ?'},
+    {from:'me', text:'Oui direct, énorme'},
+    {from:'them', text:'Ok, je vois ça. À bientôt !'}
+  ]},
+  narol: {name:'Narol Gnooi', msgs:[
+    {from:'them', text:'On garde la session studio pour jeudi ?'},
+    {from:'me', text:'Yes ça marche pour moi'},
+    {from:'them', text:'Je te message ce soir pour les détails'}
+  ]}
+};
+let activeChat = null;
+function openChat(id, name){ activeChat = id; renderChat(); showScreen('chat'); }
+function renderChat(){
+  const box = document.getElementById('chat-messages');
+  box.innerHTML = '';
+  chats[activeChat].msgs.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'bubble ' + (m.from === 'me' ? 'me' : 'them');
+    div.textContent = m.text;
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+function sendMsg(){
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text || !activeChat) return;
+  chats[activeChat].msgs.push({from:'me', text});
+  input.value = '';
+  renderChat();
+}
+document.getElementById('chat-input').addEventListener('keydown', e=>{ if(e.key === 'Enter') sendMsg(); });
+
+/* ---------- live clock ---------- */
+function updateClock(){
+  const d = new Date();
+  document.getElementById('clock').textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+/* ---------- PWA install prompt ---------- */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  const toast = document.createElement('div');
+  toast.className = 'install-toast';
+  toast.innerHTML = `<div class="txt"><b>Installer JILD</b>Ajoute JILD à ton écran d'accueil.</div><button class="install">Installer</button><button class="close icon-svg" data-icon="x" style="width:18px;height:18px;"></button>`;
+  document.getElementById('app').appendChild(toast);
+  renderIcons(toast);
+  toast.querySelector('.install').onclick = async ()=>{
+    toast.remove();
+    if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+  };
+  toast.querySelector('.close').onclick = ()=> toast.remove();
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+renderIcons();
+</script>
+<script src="app.js"></script>
+<script>
+  initAuth();
+</script>
+</body>
+</html>
